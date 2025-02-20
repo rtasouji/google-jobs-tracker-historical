@@ -67,15 +67,16 @@ def save_to_db(data):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # ✅ Ensure table exists
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS share_of_voice (
             id SERIAL PRIMARY KEY,
             domain TEXT,
             sov FLOAT,
             date DATE
-        )
+        );
     """)
-    
+
     today = datetime.date.today()
     
     for domain, sov in data.items():
@@ -85,6 +86,7 @@ def save_to_db(data):
     conn.commit()
     cursor.close()
     conn.close()
+
 
 # Retrieve Historical Data
 def get_historical_data():
@@ -113,6 +115,7 @@ def get_historical_data():
     cursor.close()
     conn.close()
     return df
+
 
 
 # Streamlit UI

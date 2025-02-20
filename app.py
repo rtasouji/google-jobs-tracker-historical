@@ -5,11 +5,19 @@ import tldextract
 import psycopg2
 from collections import defaultdict
 import datetime
+
+# ✅ Securely Load Database URL from Streamlit Secrets
+DB_URL = st.secrets["DB_URL"]
+
+# ✅ Define Database Connection Function
+def get_db_connection():
+    return psycopg2.connect(DB_URL, sslmode="require")
+
+# ✅ Ensure Table Exists Before Querying
 def initialize_database():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # ✅ Ensure table exists
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS share_of_voice (
             id SERIAL PRIMARY KEY,
@@ -18,19 +26,13 @@ def initialize_database():
             date DATE NOT NULL
         );
     """)
-    
+
     conn.commit()
     cursor.close()
     conn.close()
 
-# ✅ Run this once at the start of the app
+# ✅ Now Call initialize_database AFTER Defining get_db_connection()
 initialize_database()
-
-# ✅ Securely Load Database URL from Secrets
-DB_URL = st.secrets["DB_URL"]
-
-def get_db_connection():
-    return psycopg2.connect(DB_URL, sslmode="allow")
 
 # ✅ Load job titles, search volumes, and locations from CSV
 def load_keywords():
@@ -38,12 +40,12 @@ def load_keywords():
     keywords = df.to_dict(orient="records")  # Convert to list of dictionaries
     return keywords
 
-# CTR Model Based on Position
+# ✅ CTR Model Based on Position
 def estimate_ctr(position):
     ctr_table = {1: 0.30, 2: 0.20, 3: 0.15, 4: 0.10, 5: 0.08}
     return ctr_table.get(position, 0.05)  # Default 5% for positions 6+
 
-# Fetch Google Jobs Results
+# ✅ Fetch Google Jobs Results
 def get_google_jobs_results(query, location):
     url = "https://serpapi.com/search"
     params = {
@@ -56,7 +58,7 @@ def get_google_jobs_results(query, location):
     response = requests.get(url, params=params)
     return response.json().get("jobs_results", [])
 
-# Compute Share of Voice (SOV)
+# ✅ Compute Share of Voice (SOV)
 def compute_sov():
     domain_sov = defaultdict(float)
     keywords = load_keywords()  # ✅ Load keywords from CSV
@@ -82,7 +84,7 @@ def compute_sov():
     
     return domain_sov
 
-# Store Data in Database
+# ✅ Store Data in Database
 def save_to_db(data):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -109,9 +111,7 @@ def save_to_db(data):
     cursor.close()
     conn.close()
 
-
-
-# Retrieve Historical Data
+# ✅ Retrieve Historical Data
 def get_historical_data():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -139,17 +139,15 @@ def get_historical_data():
     conn.close()
     return df
 
-
-
-# Streamlit UI
+# ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
 
 if st.button("Fetch & Store Data"):
-    domain_sov = compute_sov()  # ✅ Correctly call compute_sov()
-    save_to_db(domain_sov)  # ✅ Pass the dictionary correctly
+    domain_sov = compute_sov()  # ✅ Correct function call
+    save_to_db(domain_sov)  # ✅ Pass dictionary correctly
     st.success("Data stored successfully!")
 
-# Show Historical Trends
+# ✅ Show Historical Trends
 st.write("### Share of Voice Over Time")
 df_sov = get_historical_data()
 

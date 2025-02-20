@@ -10,7 +10,7 @@ import datetime
 DB_URL = st.secrets["DB_URL"]
 
 def get_db_connection():
-    return psycopg2.connect(DB_URL, sslmode="require")
+    return psycopg2.connect(DB_URL, sslmode="allow")
 
 # ✅ Load job titles, search volumes, and locations from CSV
 def load_keywords():

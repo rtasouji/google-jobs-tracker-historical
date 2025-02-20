@@ -5,6 +5,7 @@ import tldextract
 import psycopg2
 from collections import defaultdict
 import datetime
+import os
 
 # ✅ Securely Load Database URL from Streamlit Secrets
 DB_URL = st.secrets["DB_URL"]
@@ -31,16 +32,26 @@ def initialize_database():
     cursor.close()
     conn.close()
 
-# ✅ Now Call initialize_database AFTER Defining get_db_connection()
+# ✅ Initialize Database
 initialize_database()
 
-# ✅ Load job data from CSV (without search volume)
+# ✅ Load job queries from CSV
 def load_jobs():
-    df = pd.read_csv("jobs.csv")  # Read CSV file
-    jobs_data = df.to_dict(orient="records")  # Convert to list of dictionaries
+    file_path = "jobs.csv"
+
+    if not os.path.exists(file_path):
+        st.error(f"⚠️ File '{file_path}' not found! Please upload it to proceed.")
+        return []
+
+    df = pd.read_csv(file_path)
+    
+    # ✅ Print column names for debugging
+    st.write("Columns in jobs.csv:", df.columns.tolist())
+
+    jobs_data = df.to_dict(orient="records")
     return jobs_data
 
-# ✅ Fetch Google Jobs Results
+# ✅ Fetch Google Jobs Results from SerpAPI
 def get_google_jobs_results(query, location):
     url = "https://serpapi.com/search"
     params = {
@@ -53,24 +64,29 @@ def get_google_jobs_results(query, location):
     response = requests.get(url, params=params)
     return response.json().get("jobs_results", [])
 
-# ✅ Compute Share of Voice (SoV) Based on Job Ranking & Link Order
+# ✅ Compute Share of Voice (SoV) Across Multiple Keywords
 def compute_sov():
     domain_sov = defaultdict(float)
-    jobs_data = load_jobs()  # ✅ Load job data from CSV
+    jobs_data = load_jobs()  # ✅ Load multiple job queries from CSV
 
-    for job in jobs_data:
-        job_rank = job["job_rank"]  # Vertical position of the job
-        apply_options = job.get("apply_options", [])  # List of links
+    for job_query in jobs_data:
+        job_title = job_query["job_title"]
+        location = job_query["location"]
 
-        V = 1 / job_rank  # Vertical weight
+        # ✅ Fetch job listings from SerpAPI
+        jobs = get_google_jobs_results(job_title, location)
 
-        for link_order, option in enumerate(apply_options, start=1):
-            if "link" in option:
-                domain = extract_domain(option["link"])  # Extract domain from URL
-                
-                H = 1 / link_order  # ✅ Horizontal weight (without scaling factor)
-                
-                domain_sov[domain] += V * H  # Compute SoV contribution
+        for job_rank, job in enumerate(jobs, start=1):  # ✅ Rank starts at 1
+            apply_options = job.get("apply_options", [])  # ✅ List of application links
+
+            V = 1 / job_rank  # ✅ Vertical weight
+
+            for link_order, option in enumerate(apply_options, start=1):
+                if "link" in option:
+                    domain = extract_domain(option["link"])
+
+                    H = 1 / link_order  # ✅ Horizontal weight
+                    domain_sov[domain] += V * H  # Compute SoV contribution
 
     # ✅ Normalize SoV to percentage (0-100%)
     total_sov = sum(domain_sov.values())
@@ -79,10 +95,8 @@ def compute_sov():
 
     return domain_sov
 
+# ✅ Extract Domain from URL
 def extract_domain(url):
-    """
-    Extracts the domain from a given URL.
-    """
     extracted = tldextract.extract(url)
     return f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain
 
@@ -91,7 +105,6 @@ def save_to_db(data):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # ✅ Ensure table exists
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS share_of_voice (
             id SERIAL PRIMARY KEY,
@@ -116,7 +129,6 @@ def get_historical_data():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # ✅ Check if table exists before querying
     cursor.execute("""
         SELECT EXISTS (
             SELECT FROM information_schema.tables 
@@ -138,7 +150,7 @@ def get_historical_data():
     cursor.close()
     conn.close()
 
-    # ✅ Fix: Aggregate duplicates by averaging SoV for the same date/domain
+    # ✅ Aggregate duplicates by averaging SoV for the same date/domain
     df = df.groupby(["date", "domain"], as_index=False).agg({"sov": "mean"})
 
     return df
@@ -146,9 +158,17 @@ def get_historical_data():
 # ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
 
+# ✅ Upload jobs.csv file manually in Streamlit Cloud
+uploaded_file = st.file_uploader("Upload jobs.csv", type=["csv"])
+
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    df.to_csv("jobs.csv", index=False)  # Save uploaded file locally
+    st.success("✅ File uploaded successfully! Now, fetch & store data.")
+
 if st.button("Fetch & Store Data"):
-    domain_sov = compute_sov()  # ✅ Correct function call
-    save_to_db(domain_sov)  # ✅ Pass dictionary correctly
+    domain_sov = compute_sov()  # ✅ Compute SoV
+    save_to_db(domain_sov)  # ✅ Save results to database
     st.success("Data stored successfully!")
 
 # ✅ Show Historical Trends

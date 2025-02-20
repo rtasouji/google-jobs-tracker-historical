@@ -65,9 +65,14 @@ def get_google_jobs_results(query, location):
     return response.json().get("jobs_results", [])
 
 # ✅ Compute Share of Voice (SoV) Across Multiple Keywords
+from collections import defaultdict
+import tldextract
+
 def compute_sov():
     domain_sov = defaultdict(float)
-    jobs_data = load_jobs()  # ✅ Load multiple job queries from CSV
+    jobs_data = load_jobs()  # ✅ Load job queries from CSV
+
+    total_weight = 0  # ✅ Track total weight for normalization
 
     for job_query in jobs_data:
         job_title = job_query["job_title"]
@@ -79,23 +84,23 @@ def compute_sov():
         for job_rank, job in enumerate(jobs, start=1):  # ✅ Rank starts at 1
             apply_options = job.get("apply_options", [])  # ✅ List of application links
 
-            V = 1 / job_rank  # ✅ Vertical weight
+            V = 1 / job_rank  # ✅ Vertical weight (higher ranks contribute more)
 
             for link_order, option in enumerate(apply_options, start=1):
                 if "link" in option:
                     domain = extract_domain(option["link"])
+                    H = 1 / link_order  # ✅ Horizontal weight (leftmost link contributes more)
+                    
+                    weight = V * H  # ✅ Combined weight
 
-                    H = 1 / link_order  # ✅ Horizontal weight
-                    domain_sov[domain] += V * H  # Compute SoV contribution
+                    domain_sov[domain] += weight  # ✅ Accumulate domain's SoV
+                    total_weight += weight  # ✅ Track total weight for normalization
 
     # ✅ Fix: Normalize SoV to make sure total is 100%
-    total_sov = sum(domain_sov.values())
-
-    if total_sov > 0:
-        domain_sov = {domain: round((sov / total_sov) * 100, 2) for domain, sov in domain_sov.items()}
+    if total_weight > 0:
+        domain_sov = {domain: round((sov / total_weight) * 100, 2) for domain, sov in domain_sov.items()}
     
     return domain_sov
-
 
 # ✅ Extract Domain from URL
 def extract_domain(url):

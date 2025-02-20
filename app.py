@@ -64,12 +64,12 @@ def get_google_jobs_results(query, location):
     response = requests.get(url, params=params)
     return response.json().get("jobs_results", [])
 
-# ✅ Compute Share of Voice (SoV) Across Multiple Keywords
+# ✅ Compute Share of Voice (Corrected Formula)
 def compute_sov():
     domain_sov = defaultdict(float)
-    jobs_data = load_jobs()  # ✅ Load job queries from CSV
+    jobs_data = load_jobs()  
 
-    total_weight = 0  # ✅ Track total weight for normalization
+    total_sov = 0  # ✅ Track total share
 
     for job_query in jobs_data:
         job_title = job_query["job_title"]
@@ -78,25 +78,26 @@ def compute_sov():
         # ✅ Fetch job listings from SerpAPI
         jobs = get_google_jobs_results(job_title, location)
 
-        for job_rank, job in enumerate(jobs, start=1):  # ✅ Rank starts at 1
-            apply_options = job.get("apply_options", [])  # ✅ List of application links
+        for job_rank, job in enumerate(jobs, start=1):
+            apply_options = job.get("apply_options", [])
 
-            V = 1 / job_rank  # ✅ Vertical weight (higher ranks contribute more)
+            # ✅ Apply weight formula (1/job_rank)
+            V = 1 / job_rank  
 
             for link_order, option in enumerate(apply_options, start=1):
                 if "link" in option:
                     domain = extract_domain(option["link"])
-                    H = 1 / link_order  # ✅ Horizontal weight (leftmost link contributes more)
-                    
-                    weight = V * H  # ✅ Combined weight
+                    H = 1 / link_order  # ✅ Horizontal weight
 
+                    weight = V * H  
                     domain_sov[domain] += weight  # ✅ Accumulate domain's SoV
-                    total_weight += weight  # ✅ Track total weight for normalization
+                    total_sov += weight  # ✅ Accumulate total
 
-    # ✅ Fix: Normalize SoV to make sure total is 100%
-    if total_weight > 0:
-        domain_sov = {domain: round((sov / total_weight) * 100, 2) for domain, sov in domain_sov.items()}
-    
+    # ✅ Fix: Ensure total SoV is 100%
+    if total_sov > 0:
+        for domain in domain_sov:
+            domain_sov[domain] = round((domain_sov[domain] / total_sov) * 100, 2)
+
     return domain_sov
 
 # ✅ Extract Domain from URL
@@ -122,7 +123,7 @@ def save_to_db(data):
     
     for domain, sov in data.items():
         cursor.execute("INSERT INTO share_of_voice (domain, sov, date) VALUES (%s, %s, %s)",
-                       (domain, round(sov, 2), today))  # ✅ Store SoV correctly
+                       (domain, round(sov, 2), today))  
     
     conn.commit()
     cursor.close()
@@ -148,7 +149,6 @@ def get_historical_data():
         conn.close()
         return pd.DataFrame()
 
-    # ✅ Fetch data from the database
     df = pd.read_sql("SELECT * FROM share_of_voice", conn)
 
     cursor.close()
@@ -163,8 +163,8 @@ def get_historical_data():
 st.title("Google Jobs Share of Voice Tracker")
 
 if st.button("Fetch & Store Data"):
-    domain_sov = compute_sov()  # ✅ Compute SoV
-    save_to_db(domain_sov)  # ✅ Save results to database
+    domain_sov = compute_sov()  
+    save_to_db(domain_sov)  
     st.success("Data stored successfully!")
 
 # ✅ Show Historical Trends
@@ -172,8 +172,8 @@ st.write("### Share of Voice Over Time")
 df_sov = get_historical_data()
 
 if not df_sov.empty:
-    df_sov["date"] = pd.to_datetime(df_sov["date"])  # Ensure date format
-    pivot_df = df_sov.pivot(index="date", columns="domain", values="sov")  # ✅ Now pivot will work
+    df_sov["date"] = pd.to_datetime(df_sov["date"])
+    pivot_df = df_sov.pivot(index="date", columns="domain", values="sov")  
 
     st.line_chart(pivot_df)
     st.dataframe(df_sov)

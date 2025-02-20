@@ -125,7 +125,7 @@ def get_historical_data():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # ✅ Check if table exists
+    # ✅ Check if table exists before querying
     cursor.execute("""
         SELECT EXISTS (
             SELECT FROM information_schema.tables 
@@ -139,14 +139,19 @@ def get_historical_data():
         st.warning("⚠️ Table 'share_of_voice' does not exist. No data available yet.")
         cursor.close()
         conn.close()
-        return pd.DataFrame()  # Return an empty DataFrame to avoid errors
+        return pd.DataFrame()
 
-    # ✅ Run the query only if the table exists
+    # ✅ Fetch data from the database
     df = pd.read_sql("SELECT * FROM share_of_voice", conn)
 
     cursor.close()
     conn.close()
+
+    # ✅ Fix: Aggregate duplicates by averaging SoV for the same date/domain
+    df = df.groupby(["date", "domain"], as_index=False).agg({"sov": "mean"})
+
     return df
+
 
 # ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
@@ -161,10 +166,11 @@ st.write("### Share of Voice Over Time")
 df_sov = get_historical_data()
 
 if not df_sov.empty:
-    df_sov["date"] = pd.to_datetime(df_sov["date"])
-    pivot_df = df_sov.pivot(index="date", columns="domain", values="sov")
-    
+    df_sov["date"] = pd.to_datetime(df_sov["date"])  # Ensure date format
+    pivot_df = df_sov.pivot(index="date", columns="domain", values="sov")  # ✅ Now pivot will work
+
     st.line_chart(pivot_df)
     st.dataframe(df_sov)
 else:
     st.write("No historical data available yet.")
+

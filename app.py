@@ -61,7 +61,10 @@ def get_google_jobs_results(query, location):
 # ✅ Compute Share of Voice (SOV)
 def compute_sov():
     domain_sov = defaultdict(float)
-    keywords = load_keywords()  # ✅ Load keywords from CSV
+    keywords = load_keywords()
+    
+    # ✅ Calculate total search volume across all job titles
+    total_search_volume = sum(keyword["search_volume"] for keyword in keywords)
 
     for keyword in keywords:
         job_title = keyword["job_title"]
@@ -79,10 +82,16 @@ def compute_sov():
 
                         domain = f"{extracted.subdomain}.{extracted.domain}.{extracted.suffix}" if extracted.subdomain else f"{extracted.domain}.{extracted.suffix}"
                         
-                        ctr = estimate_ctr(idx)
-                        domain_sov[domain] += ctr * search_volume
-    
+                        ctr = estimate_ctr(idx)  # Get estimated CTR for the position
+                        estimated_clicks = ctr * search_volume  # ✅ Clicks estimated from CTR * search volume
+
+                        domain_sov[domain] += estimated_clicks  # Add clicks to domain
+
+    # ✅ Normalize SoV to percentages
+    domain_sov = {domain: round((sov / total_search_volume) * 100, 2) for domain, sov in domain_sov.items()}
+
     return domain_sov
+
 
 # ✅ Store Data in Database
 def save_to_db(data):

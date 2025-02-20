@@ -89,9 +89,31 @@ def save_to_db(data):
 # Retrieve Historical Data
 def get_historical_data():
     conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # ✅ Check if table exists
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_name = 'share_of_voice'
+        );
+    """)
+    
+    table_exists = cursor.fetchone()[0]
+    
+    if not table_exists:
+        st.warning("⚠️ Table 'share_of_voice' does not exist. No data available yet.")
+        cursor.close()
+        conn.close()
+        return pd.DataFrame()  # Return an empty DataFrame to avoid errors
+
+    # ✅ Run the query only if the table exists
     df = pd.read_sql("SELECT * FROM share_of_voice", conn)
+
+    cursor.close()
     conn.close()
     return df
+
 
 # Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")

@@ -88,12 +88,14 @@ def compute_sov():
                     H = 1 / link_order  # ✅ Horizontal weight
                     domain_sov[domain] += V * H  # Compute SoV contribution
 
-    # ✅ Normalize SoV to percentage (0-100%)
+    # ✅ Fix: Normalize SoV to make sure total is 100%
     total_sov = sum(domain_sov.values())
+
     if total_sov > 0:
         domain_sov = {domain: round((sov / total_sov) * 100, 2) for domain, sov in domain_sov.items()}
-
+    
     return domain_sov
+
 
 # ✅ Extract Domain from URL
 def extract_domain(url):

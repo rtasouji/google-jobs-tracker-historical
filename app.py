@@ -40,7 +40,7 @@ def load_jobs():
     file_path = "jobs.csv"
 
     if not os.path.exists(file_path):
-        st.error(f"⚠️ File '{file_path}' not found! Please upload it to proceed.")
+        st.error(f"⚠️ File '{file_path}' not found! Please ensure it exists in the project folder.")
         return []
 
     df = pd.read_csv(file_path)
@@ -157,14 +157,6 @@ def get_historical_data():
 
 # ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
-
-# ✅ Upload jobs.csv file manually in Streamlit Cloud
-uploaded_file = st.file_uploader("Upload jobs.csv", type=["csv"])
-
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    df.to_csv("jobs.csv", index=False)  # Save uploaded file locally
-    st.success("✅ File uploaded successfully! Now, fetch & store data.")
 
 if st.button("Fetch & Store Data"):
     domain_sov = compute_sov()  # ✅ Compute SoV

@@ -63,7 +63,7 @@ def compute_sov():
     domain_sov = defaultdict(float)
     keywords = load_keywords()
 
-    # ✅ Correct total search volume calculation
+    # ✅ Get total search volume across all job titles
     total_search_volume = sum(keyword["search_volume"] for keyword in keywords)
 
     for keyword in keywords:
@@ -83,15 +83,16 @@ def compute_sov():
                         domain = f"{extracted.subdomain}.{extracted.domain}.{extracted.suffix}" if extracted.subdomain else f"{extracted.domain}.{extracted.suffix}"
                         
                         ctr = estimate_ctr(idx)  # Get estimated CTR for the position
-                        estimated_clicks = ctr * search_volume  # ✅ Clicks estimated from CTR * search volume
+                        estimated_clicks = ctr * search_volume  # ✅ Estimate clicks
 
-                        domain_sov[domain] += estimated_clicks  # Add clicks to domain
+                        domain_sov[domain] += estimated_clicks  # Add to domain's total
 
-    # ✅ Normalize SoV properly (Convert to percentage)
+    # ✅ Normalize SoV properly (convert to percentage)
     if total_search_volume > 0:
         domain_sov = {domain: round((sov / total_search_volume) * 100, 2) for domain, sov in domain_sov.items()}
 
     return domain_sov
+
 
 
 # ✅ Store Data in Database

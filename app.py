@@ -34,16 +34,11 @@ def initialize_database():
 # ✅ Now Call initialize_database AFTER Defining get_db_connection()
 initialize_database()
 
-# ✅ Load job titles, search volumes, and locations from CSV
-def load_keywords():
-    df = pd.read_csv("keywords.csv")  # Read CSV file
-    keywords = df.to_dict(orient="records")  # Convert to list of dictionaries
-    return keywords
-
-# ✅ CTR Model Based on Position
-def estimate_ctr(position):
-    ctr_table = {1: 0.30, 2: 0.20, 3: 0.15, 4: 0.10, 5: 0.08}
-    return ctr_table.get(position, 0.05)  # Default 5% for positions 6+
+# ✅ Load job data from CSV (without search volume)
+def load_jobs():
+    df = pd.read_csv("jobs.csv")  # Read CSV file
+    jobs_data = df.to_dict(orient="records")  # Convert to list of dictionaries
+    return jobs_data
 
 # ✅ Fetch Google Jobs Results
 def get_google_jobs_results(query, location):
@@ -58,42 +53,38 @@ def get_google_jobs_results(query, location):
     response = requests.get(url, params=params)
     return response.json().get("jobs_results", [])
 
-# ✅ Compute Share of Voice (SOV)
+# ✅ Compute Share of Voice (SoV) Based on Job Ranking & Link Order
 def compute_sov():
     domain_sov = defaultdict(float)
-    keywords = load_keywords()
+    jobs_data = load_jobs()  # ✅ Load job data from CSV
 
-    # ✅ Get total search volume across all job titles
-    total_search_volume = sum(keyword["search_volume"] for keyword in keywords)
+    for job in jobs_data:
+        job_rank = job["job_rank"]  # Vertical position of the job
+        apply_options = job.get("apply_options", [])  # List of links
 
-    for keyword in keywords:
-        job_title = keyword["job_title"]
-        search_volume = keyword["search_volume"]
-        location = keyword["location"]
+        V = 1 / job_rank  # Vertical weight
 
-        jobs = get_google_jobs_results(job_title, location)
+        for link_order, option in enumerate(apply_options, start=1):
+            if "link" in option:
+                domain = extract_domain(option["link"])  # Extract domain from URL
+                
+                H = 1 / link_order  # ✅ Horizontal weight (without scaling factor)
+                
+                domain_sov[domain] += V * H  # Compute SoV contribution
 
-        for job in jobs:
-            if "apply_options" in job:
-                for idx, option in enumerate(job["apply_options"], start=1):
-                    if "link" in option:
-                        url = option["link"]
-                        extracted = tldextract.extract(url)
-
-                        domain = f"{extracted.subdomain}.{extracted.domain}.{extracted.suffix}" if extracted.subdomain else f"{extracted.domain}.{extracted.suffix}"
-                        
-                        ctr = estimate_ctr(idx)  # Get estimated CTR for the position
-                        estimated_clicks = ctr * search_volume  # ✅ Estimate clicks
-
-                        domain_sov[domain] += estimated_clicks  # Add to domain's total
-
-    # ✅ Normalize SoV properly (convert to percentage)
-    if total_search_volume > 0:
-        domain_sov = {domain: round((sov / total_search_volume) * 100, 2) for domain, sov in domain_sov.items()}
+    # ✅ Normalize SoV to percentage (0-100%)
+    total_sov = sum(domain_sov.values())
+    if total_sov > 0:
+        domain_sov = {domain: round((sov / total_sov) * 100, 2) for domain, sov in domain_sov.items()}
 
     return domain_sov
 
-
+def extract_domain(url):
+    """
+    Extracts the domain from a given URL.
+    """
+    extracted = tldextract.extract(url)
+    return f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain
 
 # ✅ Store Data in Database
 def save_to_db(data):
@@ -105,7 +96,7 @@ def save_to_db(data):
         CREATE TABLE IF NOT EXISTS share_of_voice (
             id SERIAL PRIMARY KEY,
             domain TEXT NOT NULL,
-            sov FLOAT NOT NULL,  -- Stored as percentage
+            sov FLOAT NOT NULL,
             date DATE NOT NULL
         );
     """)
@@ -114,12 +105,12 @@ def save_to_db(data):
     
     for domain, sov in data.items():
         cursor.execute("INSERT INTO share_of_voice (domain, sov, date) VALUES (%s, %s, %s)",
-                       (domain, round(sov, 2), today))  # ✅ Store correctly formatted SoV
+                       (domain, round(sov, 2), today))  # ✅ Store SoV correctly
     
     conn.commit()
     cursor.close()
     conn.close()
-    
+
 # ✅ Retrieve Historical Data
 def get_historical_data():
     conn = get_db_connection()
@@ -152,7 +143,6 @@ def get_historical_data():
 
     return df
 
-
 # ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
 
@@ -173,4 +163,3 @@ if not df_sov.empty:
     st.dataframe(df_sov)
 else:
     st.write("No historical data available yet.")
-

@@ -62,7 +62,7 @@ def get_google_jobs_results(query, location):
 def compute_sov():
     domain_sov = defaultdict(float)
     keywords = load_keywords()
-    
+
     # ✅ Calculate total search volume across all job titles
     total_search_volume = sum(keyword["search_volume"] for keyword in keywords)
 
@@ -87,11 +87,11 @@ def compute_sov():
 
                         domain_sov[domain] += estimated_clicks  # Add clicks to domain
 
-    # ✅ Normalize SoV to percentages
-    domain_sov = {domain: round((sov / total_search_volume) * 100, 2) for domain, sov in domain_sov.items()}
+    # ✅ Normalize SoV to a percentage (0-100%)
+    if total_search_volume > 0:
+        domain_sov = {domain: round((sov / total_search_volume) * 100, 2) for domain, sov in domain_sov.items()}
 
     return domain_sov
-
 
 # ✅ Store Data in Database
 def save_to_db(data):
@@ -103,7 +103,7 @@ def save_to_db(data):
         CREATE TABLE IF NOT EXISTS share_of_voice (
             id SERIAL PRIMARY KEY,
             domain TEXT NOT NULL,
-            sov FLOAT NOT NULL,
+            sov FLOAT NOT NULL,  -- Stored as percentage
             date DATE NOT NULL
         );
     """)
@@ -112,14 +112,12 @@ def save_to_db(data):
     
     for domain, sov in data.items():
         cursor.execute("INSERT INTO share_of_voice (domain, sov, date) VALUES (%s, %s, %s)",
-                       (domain, round(sov, 2), today))
+                       (domain, round(sov, 2), today))  # ✅ Store correctly formatted SoV
     
-    print(f"✅ Inserted {len(data)} records into share_of_voice")  # ✅ Debugging log
-
     conn.commit()
     cursor.close()
     conn.close()
-
+    
 # ✅ Retrieve Historical Data
 def get_historical_data():
     conn = get_db_connection()

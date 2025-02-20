@@ -65,9 +65,6 @@ def get_google_jobs_results(query, location):
     return response.json().get("jobs_results", [])
 
 # ✅ Compute Share of Voice (SoV) Across Multiple Keywords
-from collections import defaultdict
-import tldextract
-
 def compute_sov():
     domain_sov = defaultdict(float)
     jobs_data = load_jobs()  # ✅ Load job queries from CSV

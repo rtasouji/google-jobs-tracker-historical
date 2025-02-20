@@ -91,9 +91,9 @@ def save_to_db(data):
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS share_of_voice (
             id SERIAL PRIMARY KEY,
-            domain TEXT,
-            sov FLOAT,
-            date DATE
+            domain TEXT NOT NULL,
+            sov FLOAT NOT NULL,
+            date DATE NOT NULL
         );
     """)
 
@@ -102,10 +102,13 @@ def save_to_db(data):
     for domain, sov in data.items():
         cursor.execute("INSERT INTO share_of_voice (domain, sov, date) VALUES (%s, %s, %s)",
                        (domain, round(sov, 2), today))
+    
+    print(f"✅ Inserted {len(data)} records into share_of_voice")  # ✅ Debugging log
 
     conn.commit()
     cursor.close()
     conn.close()
+
 
 
 # Retrieve Historical Data

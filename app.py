@@ -5,6 +5,26 @@ import tldextract
 import psycopg2
 from collections import defaultdict
 import datetime
+def initialize_database():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # ✅ Ensure table exists
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS share_of_voice (
+            id SERIAL PRIMARY KEY,
+            domain TEXT NOT NULL,
+            sov FLOAT NOT NULL,
+            date DATE NOT NULL
+        );
+    """)
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+# ✅ Run this once at the start of the app
+initialize_database()
 
 # ✅ Securely Load Database URL from Secrets
 DB_URL = st.secrets["DB_URL"]

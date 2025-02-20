@@ -145,8 +145,8 @@ def get_historical_data():
 st.title("Google Jobs Share of Voice Tracker")
 
 if st.button("Fetch & Store Data"):
-    domain_sov = compute_sov()
-    save_to_db(domain_sov())
+    domain_sov = compute_sov()  # ✅ Correctly call compute_sov()
+    save_to_db(domain_sov)  # ✅ Pass the dictionary correctly
     st.success("Data stored successfully!")
 
 # Show Historical Trends

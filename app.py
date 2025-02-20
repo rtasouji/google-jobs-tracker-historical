@@ -6,8 +6,8 @@ import psycopg2
 from collections import defaultdict
 import datetime
 
-# Database Connection
-DB_URL = "your_postgresql_url_here"
+# ✅ Securely Load Database URL from Secrets
+DB_URL = st.secrets["DB_URL"]
 
 def get_db_connection():
     return psycopg2.connect(DB_URL, sslmode="require")
@@ -98,7 +98,7 @@ st.title("Google Jobs Share of Voice Tracker")
 
 if st.button("Fetch & Store Data"):
     domain_sov = compute_sov()
-    save_to_db(domain_sov)
+    save_to_db(domain_sov())
     st.success("Data stored successfully!")
 
 # Show Historical Trends

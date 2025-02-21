@@ -6,8 +6,6 @@ import psycopg2
 from collections import defaultdict
 import datetime
 import os
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 # ✅ Securely Load Database URL from Streamlit Secrets
 DB_URL = st.secrets["DB_URL"]
@@ -168,7 +166,15 @@ def get_historical_data(start_date, end_date):
     cursor.close()
     conn.close()
 
-    return df
+    # Pivot the data to have dates as columns
+    pivot_df = df.pivot(index="domain", columns="date", values="sov")
+
+    # Sort the DataFrame by the most recent date's SoV values (descending order)
+    if not pivot_df.empty:
+        most_recent_date = pivot_df.columns[-1]  # Get the most recent date
+        pivot_df = pivot_df.sort_values(by=most_recent_date, ascending=False)
+
+    return pivot_df
 
 # ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
@@ -189,25 +195,7 @@ st.write("### Share of Voice Over Time")
 df_sov = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
-    # Sort the DataFrame by the most recent date's SoV values (descending order)
-    most_recent_date = df_sov["date"].max()  # Get the most recent date
-    df_sov = df_sov.sort_values(by="sov", ascending=False)
-
-    # Pivot the data for the chart
-    pivot_df = df_sov.pivot(index="date", columns="domain", values="sov")
-
-    # Display the chart at the top
-    st.write("#### Chart")
-    plt.figure(figsize=(12, 6))
-    sns.lineplot(data=pivot_df)  # Use the pivoted DataFrame directly
-    plt.xticks(rotation=90)  # Rotate x-axis labels for better readability
-    plt.xlabel("Date")
-    plt.ylabel("Share of Voice (%)")
-    plt.title("Share of Voice Over Time")
-    st.pyplot(plt)
-
-    # Display the table at the bottom
-    st.write("#### Table")
+    st.line_chart(df_sov.T)  # Transpose for better visualization
     st.dataframe(df_sov)
 else:
     st.write("No historical data available for the selected date range.")

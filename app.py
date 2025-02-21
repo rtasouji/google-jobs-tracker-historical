@@ -203,3 +203,7 @@ if not df_sov.empty:
     st.dataframe(df_sov)
 else:
     st.write("No historical data available for the selected date range.")
+if __name__ == "__main__":
+    domain_sov = compute_sov()  # ✅ Fetch data & calculate SoV
+    save_to_db(domain_sov)      # ✅ Store in DB
+    print("✅ Data fetched and stored successfully!")

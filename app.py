@@ -5,7 +5,6 @@ import tldextract
 import psycopg2
 from collections import defaultdict
 import datetime
-import json
 import os
 
 # ✅ Securely Load Database URL from Streamlit Secrets
@@ -36,56 +35,96 @@ def initialize_database():
 # ✅ Initialize Database
 initialize_database()
 
-# ✅ Load SerpAPI JSON from File
-def load_serpapi_json(file_path):
-    if not os.path.exists(file_path):
-        st.error(f"⚠️ File '{file_path}' not found! Ensure it exists.")
-        return None
-    with open(file_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+# ✅ Load job queries from CSV
+def load_jobs():
+    file_path = "jobs.csv"
 
-# ✅ Extract Domain from URL (Normalize for Consistency)
+    if not os.path.exists(file_path):
+        st.error(f"⚠️ File '{file_path}' not found! Please ensure it exists in the project folder.")
+        return []
+
+    df = pd.read_csv(file_path)
+    
+    # ✅ Print column names for debugging
+    st.write("Columns in jobs.csv:", df.columns.tolist())
+
+    jobs_data = df.to_dict(orient="records")
+    return jobs_data
+
+# ✅ Fetch Google Jobs Results from SerpAPI
+def get_google_jobs_results(query, location):
+    url = "https://serpapi.com/search"
+    params = {
+        "engine": "google_jobs",
+        "q": query,
+        "location": location,
+        "hl": "en",
+        "api_key": st.secrets["SERP_API_KEY"]
+    }
+    response = requests.get(url, params=params)
+    return response.json().get("jobs_results", [])
+
+# ✅ Compute Share of Voice (Corrected Formula)
+def compute_sov():
+    domain_sov = defaultdict(float)
+    jobs_data = load_jobs()
+
+    total_sov = 0  # Track total weight correctly
+
+    for job_query in jobs_data:
+        job_title = job_query["job_title"]
+        location = job_query["location"]
+
+        # Fetch job listings from SerpAPI
+        jobs = get_google_jobs_results(job_title, location)
+
+        for job_rank, job in enumerate(jobs, start=1):
+            apply_options = job.get("apply_options", [])
+
+            # Vertical weight: Higher-ranked jobs contribute more
+            V = 1 / job_rank  
+
+            for link_order, option in enumerate(apply_options, start=1):
+                if "link" in option:
+                    domain = extract_domain(option["link"])  # Extract cleaned domain
+                    H = 1 / link_order  # Horizontal weight
+
+                    weight = V * H  
+                    domain_sov[domain] += weight  # Accumulate domain SoV
+                    total_sov += weight  # Track total weight
+
+    # Normalize SoV to ensure total sum is 100%
+    if total_sov > 0:
+        domain_sov = {domain: round((sov / total_sov) * 100, 4) for domain, sov in domain_sov.items()}
+
+    return domain_sov
+# ✅ Extract Domain from URL
 def extract_domain(url):
     extracted = tldextract.extract(url)
     domain = f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain
-    return domain.lower().replace("www.", "")  # ✅ Remove "www."
 
-# ✅ Compute Share of Voice (SoV) Accurately
-def compute_sov(json_data):
-    domain_sov = defaultdict(float)
-    total_weight = 0
-
-    jobs = json_data.get("jobs_results", [])
-
-    for job_rank, job in enumerate(jobs, start=1):  # ✅ Rank starts at 1
-        apply_options = job.get("apply_options", [])  # ✅ List of application links
-        V = 1 / job_rank  # ✅ Vertical weight (higher ranks contribute more)
-
-        for link_order, option in enumerate(apply_options, start=1):
-            if "link" in option:
-                domain = extract_domain(option["link"])
-                H = 1 / link_order  # ✅ Horizontal weight (leftmost link contributes more)
-                
-                weight = V * H  # ✅ Combined weight
-                domain_sov[domain] += weight  # ✅ Accumulate domain's SoV
-                total_weight += weight  # ✅ Track total weight for normalization
-
-    # ✅ Normalize SoV to ensure the total is 100%
-    if total_weight > 0:
-        domain_sov = {domain: round((sov / total_weight) * 100, 2) for domain, sov in domain_sov.items()}
-    
-    return domain_sov
+    # ✅ Ensure consistency by removing 'www.' from domains
+    return domain.lower().replace("www.", "")
 
 # ✅ Store Data in Database
 def save_to_db(data):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS share_of_voice (
+            id SERIAL PRIMARY KEY,
+            domain TEXT NOT NULL,
+            sov FLOAT NOT NULL,
+            date DATE NOT NULL
+        );
+    """)
+
     today = datetime.date.today()
     
     for domain, sov in data.items():
         cursor.execute("INSERT INTO share_of_voice (domain, sov, date) VALUES (%s, %s, %s)",
-                       (domain, round(sov, 2), today))  # ✅ Store SoV correctly
+                       (domain, round(sov, 2), today))  
     
     conn.commit()
     cursor.close()
@@ -95,7 +134,7 @@ def save_to_db(data):
 def get_historical_data():
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     cursor.execute("""
         SELECT EXISTS (
             SELECT FROM information_schema.tables 
@@ -111,7 +150,6 @@ def get_historical_data():
         conn.close()
         return pd.DataFrame()
 
-    # ✅ Fetch data from the database
     df = pd.read_sql("SELECT * FROM share_of_voice", conn)
 
     cursor.close()
@@ -125,22 +163,18 @@ def get_historical_data():
 # ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
 
-# ✅ Load JSON file and process SoV
-file_path = "serpapi json.txt"  # Update this path as needed
-json_data = load_serpapi_json(file_path)
-
-if json_data and st.button("Compute & Store SoV"):
-    domain_sov = compute_sov(json_data)  # ✅ Compute SoV from JSON
-    save_to_db(domain_sov)  # ✅ Save results to database
-    st.success("SoV Data Stored Successfully!")
+if st.button("Fetch & Store Data"):
+    domain_sov = compute_sov()  
+    save_to_db(domain_sov)  
+    st.success("Data stored successfully!")
 
 # ✅ Show Historical Trends
 st.write("### Share of Voice Over Time")
 df_sov = get_historical_data()
 
 if not df_sov.empty:
-    df_sov["date"] = pd.to_datetime(df_sov["date"])  # Ensure date format
-    pivot_df = df_sov.pivot(index="date", columns="domain", values="sov")  # ✅ Now pivot will work
+    df_sov["date"] = pd.to_datetime(df_sov["date"])
+    pivot_df = df_sov.pivot(index="date", columns="domain", values="sov")  
 
     st.line_chart(pivot_df)
     st.dataframe(df_sov)

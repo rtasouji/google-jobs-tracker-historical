@@ -195,7 +195,15 @@ st.write("### Share of Voice Over Time")
 df_sov = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
-    st.line_chart(df_sov.T)  # Transpose for better visualization
-    st.dataframe(df_sov)
+    # Filter the top 10 domains based on the most recent date's SoV values
+    most_recent_date = df_sov.columns[-1]  # Get the most recent date
+    top_10_domains = df_sov.sort_values(by=most_recent_date, ascending=False).head(10)
+
+    # Display the top 10 domains in the table
+    st.dataframe(top_10_domains)
+
+    # Transpose the data for the chart and sort by SoV
+    chart_data = top_10_domains.T  # Transpose for the chart
+    st.line_chart(chart_data)  # Display the chart
 else:
     st.write("No historical data available for the selected date range.")

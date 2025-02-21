@@ -69,7 +69,7 @@ def compute_sov():
     domain_sov = defaultdict(float)
     jobs_data = load_jobs()  
 
-    total_sov = 0  # ✅ Track total share
+    total_sov = 0  # ✅ Track total weight
 
     for job_query in jobs_data:
         job_title = job_query["job_title"]
@@ -81,19 +81,19 @@ def compute_sov():
         for job_rank, job in enumerate(jobs, start=1):
             apply_options = job.get("apply_options", [])
 
-            # ✅ Apply weight formula (1/job_rank)
+            # ✅ Vertical weight: 1/job_rank
             V = 1 / job_rank  
 
             for link_order, option in enumerate(apply_options, start=1):
                 if "link" in option:
-                    domain = extract_domain(option["link"])
+                    domain = extract_domain(option["link"])  # ✅ Extract normalized domain
                     H = 1 / link_order  # ✅ Horizontal weight
 
                     weight = V * H  
                     domain_sov[domain] += weight  # ✅ Accumulate domain's SoV
-                    total_sov += weight  # ✅ Accumulate total
+                    total_sov += weight  # ✅ Track total weight
 
-    # ✅ Fix: Ensure total SoV is 100%
+    # ✅ Normalize SoV to ensure total = 100%
     if total_sov > 0:
         for domain in domain_sov:
             domain_sov[domain] = round((domain_sov[domain] / total_sov) * 100, 2)
@@ -103,7 +103,11 @@ def compute_sov():
 # ✅ Extract Domain from URL
 def extract_domain(url):
     extracted = tldextract.extract(url)
-    return f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain
+    domain = f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain
+
+    # ✅ Remove 'www' to merge domains correctly
+    return domain.lower()  # Ensure case insensitivity
+
 
 # ✅ Store Data in Database
 def save_to_db(data):

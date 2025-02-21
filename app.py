@@ -6,6 +6,8 @@ import psycopg2
 from collections import defaultdict
 import datetime
 import os
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # ✅ Securely Load Database URL from Streamlit Secrets
 DB_URL = st.secrets["DB_URL"]
@@ -195,11 +197,22 @@ st.write("### Share of Voice Over Time")
 df_sov = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
-    # Display the table sorted by SoV
-    st.dataframe(df_sov)
+    # Sort the DataFrame by the most recent date's SoV values (descending order)
+    most_recent_date = df_sov.columns[-1]  # Get the most recent date
+    df_sov = df_sov.sort_values(by=most_recent_date, ascending=False)
 
-    # Transpose the data for the chart
-    chart_data = df_sov.T  # Transpose for the chart
-    st.line_chart(chart_data)  # Display the chart
+    # Display the chart at the top
+    st.write("#### Chart")
+    plt.figure(figsize=(12, 6))
+    sns.lineplot(data=df_sov.T)  # Transpose for the chart
+    plt.xticks(rotation=90)  # Rotate x-axis labels for better readability
+    plt.xlabel("Date")
+    plt.ylabel("Share of Voice (%)")
+    plt.title("Share of Voice Over Time")
+    st.pyplot(plt)
+
+    # Display the table at the bottom
+    st.write("#### Table")
+    st.dataframe(df_sov)
 else:
     st.write("No historical data available for the selected date range.")

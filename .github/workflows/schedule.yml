@@ -3,7 +3,7 @@ name: Run Streamlit Job Daily
 on:
   schedule:
     - cron: '0 6 * * *'  # Runs every day at 6 AM UTC
-  workflow_dispatch:  # 👈 Enables manual trigger
+  workflow_dispatch:  # 👈 Allows manual trigger
 
 jobs:
   run-script:
@@ -20,27 +20,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Create Streamlit Secrets File
-        run: |
-          mkdir -p ~/.streamlit
-          echo "[general]" > ~/.streamlit/secrets.toml
-          echo "DB_URL = \"${{ secrets.DB_URL }}\"" >> ~/.streamlit/secrets.toml
-          echo "SERP_API_KEY = \"${{ secrets.SERP_API_KEY }}\"" >> ~/.streamlit/secrets.toml
-
-      - name: Verify Secrets File (Debugging Step)
-        run: cat ~/.streamlit/secrets.toml
-        if: always()
-
-      - name: Export Secrets to Environment Variables
-        run: |
-          export DB_URL="${{ secrets.DB_URL }}"
-          export SERP_API_KEY="${{ secrets.SERP_API_KEY }}"
-
-      - name: Run the script with Streamlit Secrets
+      - name: Run the script
         env:
-          STREAMLIT_SECRETS_PATH: ~/.streamlit/secrets.toml  # ✅ Explicitly set the secrets path
+          DB_URL: ${{ secrets.DB_URL }}    # ✅ Pass DB_URL secret to the environment
+          SERP_API_KEY: ${{ secrets.SERP_API_KEY }}  # ✅ Pass SERP_API_KEY secret
         run: python app.py
-
-      - name: Handle Errors
-        if: failure()
-        run: echo "⚠️ The script encountered an error! Check the logs."

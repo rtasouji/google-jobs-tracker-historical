@@ -20,23 +20,21 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Create secrets file
+      - name: Create Streamlit Secrets File
         run: |
           mkdir -p ~/.streamlit
           echo "[general]" > ~/.streamlit/secrets.toml
           echo "DB_URL = \"${{ secrets.DB_URL }}\"" >> ~/.streamlit/secrets.toml
           echo "SERP_API_KEY = \"${{ secrets.SERP_API_KEY }}\"" >> ~/.streamlit/secrets.toml
 
-      - name: Debug Secrets
-        run: cat ~/.streamlit/secrets.toml  # ✅ Ensure secrets are correctly written
+      - name: Verify Secrets File (Debugging Step)
+        run: cat ~/.streamlit/secrets.toml
         if: always()
 
-      - name: Run the script with Streamlit secrets manually loaded
-        run: |
-          export STREAMLIT_SECRETS_PATH=~/.streamlit/secrets.toml
-          python app.py
+      - name: Run the script with Streamlit Secrets
         env:
-          STREAMLIT_SECRETS_PATH: ~/.streamlit/secrets.toml  # ✅ Force Streamlit to use this secrets path
+          STREAMLIT_SECRETS_PATH: ~/.streamlit/secrets.toml  # ✅ Explicitly set the secrets path
+        run: python app.py
 
       - name: Handle Errors
         if: failure()

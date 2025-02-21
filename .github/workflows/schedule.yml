@@ -1,0 +1,26 @@
+name: Run Streamlit Job Daily
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Runs every day at 6 AM UTC
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run the script
+        env:
+          DB_URL: ${{ secrets.DB_URL }}
+          SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
+        run: python your_script.py

@@ -20,9 +20,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run the script
-        env:
-          DB_URL: ${{ secrets.DB_URL }}
-          SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
-        run: python app.py
+      - name: Create secrets file
+        run: |
+          mkdir -p ~/.streamlit
+          echo "[general]" > ~/.streamlit/secrets.toml
+          echo "DB_URL = \"${{ secrets.DB_URL }}\"" >> ~/.streamlit/secrets.toml
+          echo "SERP_API_KEY = \"${{ secrets.SERP_API_KEY }}\"" >> ~/.streamlit/secrets.toml
 
+      - name: Run the script
+        run: python app.py
+        env:
+          STREAMLIT_SECRETS_PATH: ~/.streamlit/secrets.toml  # Ensure Streamlit loads secrets correctly
+
+      - name: Handle Errors
+        if: failure()
+        run: echo "⚠️ The script encountered an error! Check the logs."

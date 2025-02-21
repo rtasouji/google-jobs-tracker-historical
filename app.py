@@ -6,34 +6,6 @@ import psycopg2
 from collections import defaultdict
 import datetime
 import os
-import psycopg2
-import streamlit as st
-
-# ✅ Database Connection
-DB_URL = st.secrets["DB_URL"]
-
-def empty_database():
-    """Deletes all records from the 'share_of_voice' table"""
-    conn = psycopg2.connect(DB_URL, sslmode="require")
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute("DELETE FROM share_of_voice;")  # Delete all records
-        conn.commit()
-        st.success("✅ Database emptied successfully.")
-    except Exception as e:
-        st.error(f"❌ Error: {e}")
-    finally:
-        cursor.close()
-        conn.close()
-
-# ✅ Add button in Streamlit
-if st.button("Empty Database"):
-    empty_database()
-
-
-
-
 
 # ✅ Securely Load Database URL from Streamlit Secrets
 DB_URL = st.secrets["DB_URL"]
@@ -97,35 +69,36 @@ def compute_sov():
     domain_sov = defaultdict(float)
     jobs_data = load_jobs()
 
-    total_sov = 0  # Track total weight correctly
+    total_sov = 0  # ✅ Track total weight correctly
 
     for job_query in jobs_data:
         job_title = job_query["job_title"]
         location = job_query["location"]
 
-        # Fetch job listings from SerpAPI
+        # ✅ Fetch job listings from SerpAPI
         jobs = get_google_jobs_results(job_title, location)
 
         for job_rank, job in enumerate(jobs, start=1):
             apply_options = job.get("apply_options", [])
 
-            # Vertical weight: Higher-ranked jobs contribute more
+            # ✅ Vertical weight: Higher-ranked jobs contribute more
             V = 1 / job_rank  
 
             for link_order, option in enumerate(apply_options, start=1):
                 if "link" in option:
-                    domain = extract_domain(option["link"])  # Extract cleaned domain
-                    H = 1 / link_order  # Horizontal weight
+                    domain = extract_domain(option["link"])  # ✅ Extract cleaned domain
+                    H = 1 / link_order  # ✅ Horizontal weight
 
                     weight = V * H  
-                    domain_sov[domain] += weight  # Accumulate domain SoV
-                    total_sov += weight  # Track total weight
+                    domain_sov[domain] += weight  # ✅ Accumulate domain SoV
+                    total_sov += weight  # ✅ Track total weight
 
-    # Normalize SoV to ensure total sum is 100%
+    # ✅ Normalize SoV to ensure total sum is 100%
     if total_sov > 0:
         domain_sov = {domain: round((sov / total_sov) * 100, 4) for domain, sov in domain_sov.items()}
 
     return domain_sov
+
 # ✅ Extract Domain from URL
 def extract_domain(url):
     extracted = tldextract.extract(url)
@@ -158,8 +131,8 @@ def save_to_db(data):
     cursor.close()
     conn.close()
 
-# ✅ Retrieve Historical Data
-def get_historical_data():
+# ✅ Retrieve Historical Data with Date Range Filter
+def get_historical_data(start_date, end_date):
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -178,19 +151,35 @@ def get_historical_data():
         conn.close()
         return pd.DataFrame()
 
-    df = pd.read_sql("SELECT * FROM share_of_voice", conn)
+    # Fetch data within the selected date range
+    query = """
+        SELECT domain, date, sov 
+        FROM share_of_voice 
+        WHERE date BETWEEN %s AND %s
+    """
+    cursor.execute(query, (start_date, end_date))
+    rows = cursor.fetchall()
+
+    # Convert to DataFrame
+    df = pd.DataFrame(rows, columns=["domain", "date", "sov"])
 
     cursor.close()
     conn.close()
 
-    # ✅ Aggregate duplicates by averaging SoV for the same date/domain
-    df = df.groupby(["date", "domain"], as_index=False).agg({"sov": "mean"})
+    # Pivot the data to have dates as columns
+    pivot_df = df.pivot(index="domain", columns="date", values="sov")
 
-    return df
+    return pivot_df
 
 # ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
 
+# ✅ Date Range Selector
+st.sidebar.header("Date Range Selector")
+start_date = st.sidebar.date_input("Start Date", datetime.date(2025, 2, 1))
+end_date = st.sidebar.date_input("End Date", datetime.date(2025, 2, 28))
+
+# ✅ Fetch & Store Data
 if st.button("Fetch & Store Data"):
     domain_sov = compute_sov()  
     save_to_db(domain_sov)  
@@ -198,13 +187,10 @@ if st.button("Fetch & Store Data"):
 
 # ✅ Show Historical Trends
 st.write("### Share of Voice Over Time")
-df_sov = get_historical_data()
+df_sov = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
-    df_sov["date"] = pd.to_datetime(df_sov["date"])
-    pivot_df = df_sov.pivot(index="date", columns="domain", values="sov")  
-
-    st.line_chart(pivot_df)
+    st.line_chart(df_sov.T)  # Transpose for better visualization
     st.dataframe(df_sov)
 else:
-    st.write("No historical data available yet.")
+    st.write("No historical data available for the selected date range.")

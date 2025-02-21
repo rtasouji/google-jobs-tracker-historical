@@ -131,7 +131,7 @@ def save_to_db(data):
     cursor.close()
     conn.close()
 
-# ✅ Retrieve Historical Data with Date Range Filter
+# ✅ Retrieve Historical Data with Date Range Filter and Sorting
 def get_historical_data(start_date, end_date):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -168,6 +168,11 @@ def get_historical_data(start_date, end_date):
 
     # Pivot the data to have dates as columns
     pivot_df = df.pivot(index="domain", columns="date", values="sov")
+
+    # Sort the DataFrame by the most recent date's SoV values (descending order)
+    if not pivot_df.empty:
+        most_recent_date = pivot_df.columns[-1]  # Get the most recent date
+        pivot_df = pivot_df.sort_values(by=most_recent_date, ascending=False)
 
     return pivot_df
 

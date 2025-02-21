@@ -6,6 +6,34 @@ import psycopg2
 from collections import defaultdict
 import datetime
 import os
+import psycopg2
+import streamlit as st
+
+# ✅ Database Connection
+DB_URL = st.secrets["DB_URL"]
+
+def empty_database():
+    """Deletes all records from the 'share_of_voice' table"""
+    conn = psycopg2.connect(DB_URL, sslmode="require")
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("DELETE FROM share_of_voice;")  # Delete all records
+        conn.commit()
+        st.success("✅ Database emptied successfully.")
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
+# ✅ Add button in Streamlit
+if st.button("Empty Database"):
+    empty_database()
+
+
+
+
 
 # ✅ Securely Load Database URL from Streamlit Secrets
 DB_URL = st.secrets["DB_URL"]

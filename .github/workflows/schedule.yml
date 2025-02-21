@@ -3,6 +3,7 @@ name: Run Streamlit Job Daily
 on:
   schedule:
     - cron: '0 6 * * *'  # Runs every day at 6 AM UTC
+  workflow_dispatch:  # 👈 Enables manual trigger
 
 jobs:
   run-script:
@@ -24,3 +25,4 @@ jobs:
           DB_URL: ${{ secrets.DB_URL }}
           SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
         run: python your_script.py
+

@@ -67,9 +67,9 @@ def get_google_jobs_results(query, location):
 # ✅ Compute Share of Voice (Corrected Formula)
 def compute_sov():
     domain_sov = defaultdict(float)
-    jobs_data = load_jobs()  
+    jobs_data = load_jobs()
 
-    total_sov = 0  # ✅ Track total weight
+    total_sov = 0  # ✅ Track total weight correctly
 
     for job_query in jobs_data:
         job_title = job_query["job_title"]
@@ -81,22 +81,21 @@ def compute_sov():
         for job_rank, job in enumerate(jobs, start=1):
             apply_options = job.get("apply_options", [])
 
-            # ✅ Vertical weight: 1/job_rank
+            # ✅ Vertical weight: Higher-ranked jobs contribute more
             V = 1 / job_rank  
 
             for link_order, option in enumerate(apply_options, start=1):
                 if "link" in option:
-                    domain = extract_domain(option["link"])  # ✅ Extract normalized domain
+                    domain = extract_domain(option["link"])  # ✅ Extract cleaned domain
                     H = 1 / link_order  # ✅ Horizontal weight
 
                     weight = V * H  
-                    domain_sov[domain] += weight  # ✅ Accumulate domain's SoV
+                    domain_sov[domain] += weight  # ✅ Accumulate domain SoV
                     total_sov += weight  # ✅ Track total weight
 
-    # ✅ Normalize SoV to ensure total = 100%
+    # ✅ Normalize SoV to ensure total sum is 100%
     if total_sov > 0:
-        for domain in domain_sov:
-            domain_sov[domain] = round((domain_sov[domain] / total_sov) * 100, 2)
+        domain_sov = {domain: round((sov / total_sov) * 100, 4) for domain, sov in domain_sov.items()}
 
     return domain_sov
 
@@ -105,9 +104,8 @@ def extract_domain(url):
     extracted = tldextract.extract(url)
     domain = f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain
 
-    # ✅ Remove 'www' to merge domains correctly
-    return domain.lower()  # Ensure case insensitivity
-
+    # ✅ Ensure consistency by removing 'www.' from domains
+    return domain.lower().replace("www.", "")
 
 # ✅ Store Data in Database
 def save_to_db(data):

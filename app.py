@@ -7,8 +7,12 @@ from collections import defaultdict
 import datetime
 import os
 
-# ✅ Securely Load Database URL from Streamlit Secrets
-DB_URL = st.secrets["DB_URL"]
+
+DB_URL = os.getenv("DB_URL")  # ✅ Use os.environ for GitHub Actions
+
+if not DB_URL:
+    raise ValueError("❌ ERROR: DB_URL environment variable is not set!")
+
 
 # ✅ Define Database Connection Function
 def get_db_connection():
@@ -53,15 +57,26 @@ def load_jobs():
 
 # ✅ Fetch Google Jobs Results from SerpAPI
 def get_google_jobs_results(query, location):
+    SERP_API_KEY = os.getenv("SERP_API_KEY")  # ✅ Load API key from environment variable
+
+    if not SERP_API_KEY:
+        raise ValueError("❌ ERROR: SERP_API_KEY environment variable is not set!")
+
     url = "https://serpapi.com/search"
     params = {
         "engine": "google_jobs",
         "q": query,
         "location": location,
         "hl": "en",
-        "api_key": st.secrets["SERP_API_KEY"]
+        "api_key": SERP_API_KEY  # ✅ Use the API key from GitHub Actions
     }
+    
     response = requests.get(url, params=params)
+    
+    # ✅ Handle potential API errors
+    if response.status_code != 200:
+        raise RuntimeError(f"❌ ERROR: Failed to fetch data from SerpAPI. Status Code: {response.status_code}")
+    
     return response.json().get("jobs_results", [])
 
 # ✅ Compute Share of Voice (Corrected Formula)

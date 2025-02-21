@@ -31,6 +31,11 @@ jobs:
         run: cat ~/.streamlit/secrets.toml
         if: always()
 
+      - name: Export Secrets to Environment Variables
+        run: |
+          export DB_URL="${{ secrets.DB_URL }}"
+          export SERP_API_KEY="${{ secrets.SERP_API_KEY }}"
+
       - name: Run the script with Streamlit Secrets
         env:
           STREAMLIT_SECRETS_PATH: ~/.streamlit/secrets.toml  # ✅ Explicitly set the secrets path

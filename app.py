@@ -22,22 +22,33 @@ def initialize_database():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # ✅ Ensure table exists
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS share_of_voice (
             id SERIAL PRIMARY KEY,
             domain TEXT NOT NULL,
             sov FLOAT NOT NULL,
-            appearances INT NOT NULL,
             date DATE NOT NULL
         );
     """)
 
-    conn.commit()
+    # ✅ Check if `appearances` column exists
+    cursor.execute("""
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'share_of_voice' AND column_name = 'appearances';
+    """)
+    
+    column_exists = cursor.fetchone()
+
+    # ✅ If `appearances` column does not exist, add it
+    if not column_exists:
+        cursor.execute("ALTER TABLE share_of_voice ADD COLUMN appearances INT DEFAULT 0;")
+        conn.commit()
+        print("✅ Column 'appearances' added successfully!")
+
     cursor.close()
     conn.close()
-
-# ✅ Initialize Database
-initialize_database()
 
 # ✅ Load job queries from CSV
 def load_jobs():

@@ -206,8 +206,6 @@ def get_historical_data(start_date, end_date):
     return df_sov, df_metrics
 
 # ✅ Streamlit UI
-# ✅ Streamlit UI
-# ✅ Streamlit UI
 st.title("Google for Jobs Visibility Tracker")
 
 # ✅ Date Range Selector
@@ -238,47 +236,24 @@ if not df_sov.empty:
             visible=True  # Initially set all traces to be visible
         ))
 
-    # Add "Show All" and "Hide All" buttons as annotations
+    # Add "Show All" and "Hide All" buttons using Streamlit
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Show All"):
+            for trace in fig.data:
+                trace.visible = True
+    with col2:
+        if st.button("Hide All"):
+            for trace in fig.data:
+                trace.visible = 'legendonly'
+
+    # Update the chart layout
     fig.update_layout(
         title="Visibility Score Over Time",
         xaxis=dict(title="Date", tickangle=45, tickformat="%Y-%m-%d"),
         yaxis=dict(title="SoV (%)"),
         hovermode="x unified",
-        annotations=[
-            dict(
-                x=0.05,  # X position (0-1, relative to the chart)
-                y=1.1,   # Y position (0-1, relative to the chart)
-                xref="paper",
-                yref="paper",
-                text="Show All",
-                showarrow=False,
-                font=dict(size=12, color="blue"),
-                xanchor="left",
-                yanchor="top",
-                clicktoshow="on",  # Simulate button behavior
-            ),
-            dict(
-                x=0.2,  # X position (0-1, relative to the chart)
-                y=1.1,  # Y position (0-1, relative to the chart)
-                xref="paper",
-                yref="paper",
-                text="Hide All",
-                showarrow=False,
-                font=dict(size=12, color="red"),
-                xanchor="left",
-                yanchor="top",
-                clicktoshow="on",  # Simulate button behavior
-            ),
-        ]
     )
-
-    # Use Streamlit buttons to control visibility
-    if st.button("Show All"):
-        for trace in fig.data:
-            trace.visible = True
-    if st.button("Hide All"):
-        for trace in fig.data:
-            trace.visible = 'legendonly'
 
     st.plotly_chart(fig)
     st.write("#### Table of Visibility Score Data")

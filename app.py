@@ -206,76 +206,47 @@ def get_historical_data(start_date, end_date):
     return df_sov, df_metrics
 
 # ✅ Streamlit UI
-st.title("Google Jobs Share of Voice Tracker")
+st.title("Google for Jobs Visibility Tracker")
 
 # ✅ Date Range Selector
 st.sidebar.header("Date Range Selector")
 start_date = st.sidebar.date_input("Start Date", datetime.date(2025, 2, 1))
 end_date = st.sidebar.date_input("End Date", datetime.date(2025, 2, 28))
 
+# ✅ Fetch & Store Data
+if st.button("Fetch & Store Data"):
+    sov_data, appearances, avg_v_rank, avg_h_rank = compute_sov()
+    save_to_db(sov_data, appearances, avg_v_rank, avg_h_rank)
+    st.success("Data stored successfully!")
+
 # ✅ Show Historical Trends
-st.write("### Share of Voice Over Time")
-df_sov = get_historical_data(start_date, end_date)
+st.write("### Visibility Over Time")
+df_sov, df_metrics = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
-    # ✅ Limit to Top 15 domains to keep the chart clean
-    top_domains = df_sov.groupby("domain")["sov"].sum().nlargest(15).index
-    df_sov = df_sov[df_sov["domain"].isin(top_domains)]
-
-    # ✅ Create a Plotly figure manually (for better customization)
+    top_domains = df_sov.iloc[:15]
     fig = go.Figure()
 
-    for domain in top_domains:
-        df_domain = df_sov[df_sov["domain"] == domain]
+    for domain in top_domains.index:
         fig.add_trace(go.Scatter(
-            x=df_domain["date"], 
-            y=df_domain["sov"], 
+            x=top_domains.columns, 
+            y=top_domains.loc[domain], 
             mode="markers+lines", 
             name=domain
         ))
 
-    # ✅ Add buttons for "Select All" and "Deselect All"
     fig.update_layout(
-        updatemenus=[
-            {
-                "buttons": [
-                    {
-                        "args": [{"visible": True}],  
-                        "label": "Show All",  
-                        "method": "update"
-                    },
-                    {
-                        "args": [{"visible": "legendonly"}],  
-                        "label": "Hide All",  
-                        "method": "update"
-                    }
-                ],
-                "direction": "right",
-                "showactive": True,
-                "x": 1,
-                "xanchor": "right",
-                "y": 1.15,
-                "yanchor": "top",
-            }
-        ]
-    )
-
-    fig.update_layout(
-        title="Share of Voice Over Time",
-        xaxis=dict(
-            title="Date",
-            tickangle=45,
-            tickformat="%Y-%m-%d"
-        ),
+        title="Visibility Score Over Time",
+        xaxis=dict(title="Date", tickangle=45, tickformat="%Y-%m-%d"),
         yaxis=dict(title="SoV (%)"),
-        hovermode="x unified",  # ✅ Show only the hovered point's value
-        margin=dict(l=40, r=40, t=40, b=40)
+        hovermode="x unified",
     )
 
-    st.plotly_chart(fig)  # ✅ Display in Streamlit
+    st.plotly_chart(fig)
+    st.write("#### Table of Visibility Score Data")
+    st.dataframe(df_sov.style.format("{:.2f}"))
 
-    # ✅ Show the DataFrame as well
-    st.write("#### Table of SoV Data")
-    st.dataframe(df_sov)
+    st.write("### Additional Metrics Over Time")
+    st.dataframe(df_metrics.style.format("{:.2f}"))
 else:
     st.write("No historical data available for the selected date range.")

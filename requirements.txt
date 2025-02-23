@@ -4,4 +4,4 @@ pandas
 tldextract
 psycopg2-binary
 matplotlib
-matplotlib
+plotly

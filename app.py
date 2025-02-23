@@ -6,7 +6,7 @@ import psycopg2
 from collections import defaultdict
 import datetime
 import os
-import matplotlib.pyplot as plt
+import plotly.express as px  # ✅ Interactive Charting Library
 
 DB_URL = os.getenv("DB_URL")  # ✅ Use os.environ for GitHub Actions
 
@@ -81,23 +81,26 @@ if not df_sov.empty:
     # ✅ Limit to Top 10 domains to keep the chart clean
     df_sov = df_sov.iloc[:10]
 
-    # ✅ Use Matplotlib for better visualization
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # ✅ Convert to long format for Plotly
+    df_sov_reset = df_sov.T.reset_index()
+    df_sov_reset = df_sov_reset.melt(id_vars="date", var_name="domain", value_name="sov")
 
-    for domain in df_sov.index:
-        ax.plot(df_sov.columns, df_sov.loc[domain], marker='o', linestyle='-', label=domain)
+    # ✅ Create an interactive line chart with hover tooltips
+    fig = px.line(
+        df_sov_reset, x="date", y="sov", color="domain", 
+        title="Share of Voice Over Time",
+        labels={"sov": "Share of Voice (%)", "date": "Date"},
+        hover_name="domain", hover_data={"sov": ":.2f"}  # Shows exact SoV values on hover
+    )
 
-    ax.set_title("Share of Voice Over Time")
-    ax.set_xlabel("Date")
-    ax.set_ylabel("SoV (%)")
-    ax.legend(loc="upper right", fontsize="small")  # ✅ Smaller legend to fit more items
-    ax.grid(True, linestyle="--", alpha=0.5)
+    fig.update_traces(mode="markers+lines", marker=dict(size=5))  # ✅ Adds hover points
+    fig.update_layout(
+        hovermode="x unified",  # ✅ Shows all values on hover
+        xaxis=dict(tickangle=45),  # ✅ Rotate x-axis labels
+        margin=dict(l=40, r=40, t=40, b=40),  # ✅ Improve spacing
+    )
 
-    plt.xticks(rotation=45)  # ✅ Rotate x-axis labels for readability
-    plt.tight_layout()
-
-    # ✅ Display the Matplotlib chart in Streamlit
-    st.pyplot(fig)
+    st.plotly_chart(fig)  # ✅ Display in Streamlit
 
     # ✅ Show the DataFrame as well
     st.write("#### Table of SoV Data")

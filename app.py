@@ -151,30 +151,60 @@ def save_to_db(sov_data, appearances, avg_v_rank, avg_h_rank):
     conn.close()
 
 # ✅ Retrieve Historical Data
+# ✅ Retrieve Historical Data with Date Range Filter and Sorting
 def get_historical_data(start_date, end_date):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT domain, date, sov, appearances, avg_v_rank, avg_h_rank 
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_name = 'share_of_voice'
+        );
+    """)
+    
+    table_exists = cursor.fetchone()[0]
+    
+    if not table_exists:
+        st.warning("⚠️ Table 'share_of_voice' does not exist. No data available yet.")
+        cursor.close()
+        conn.close()
+        return pd.DataFrame(), pd.DataFrame()
+
+    # ✅ Fetch all stored metrics from the database
+    query = """
+        SELECT domain, date, sov, appearances, avg_v_rank, avg_h_rank
         FROM share_of_voice 
         WHERE date BETWEEN %s AND %s
-    """, (start_date, end_date))
-
+    """
+    cursor.execute(query, (start_date, end_date))
     rows = cursor.fetchall()
+
+    # ✅ Convert to DataFrame
     df = pd.DataFrame(rows, columns=["domain", "date", "sov", "appearances", "avg_v_rank", "avg_h_rank"])
 
     cursor.close()
     conn.close()
 
+    # ✅ Convert 'date' column to only show the date (no hours)
     df["date"] = pd.to_datetime(df["date"]).dt.date  
+
+    # ✅ Aggregate duplicate (domain, date) pairs by averaging numeric columns
+    df = df.groupby(["domain", "date"], as_index=False).agg({
+        "sov": "mean",
+        "appearances": "sum",    # ✅ Sum appearances count
+        "avg_v_rank": "mean",    # ✅ Average vertical rank
+        "avg_h_rank": "mean"     # ✅ Average horizontal rank
+    })
+
+    # ✅ Pivot the data: Domains as rows, Dates as columns
     df_sov = df.pivot(index="domain", columns="date", values="sov").fillna(0)
     df_metrics = df.pivot(index="domain", columns="date", values=["appearances", "avg_v_rank", "avg_h_rank"]).fillna(0)
 
+    # ✅ Sort by the most recent date’s SoV values (if data exists)
     if not df_sov.empty:
-        most_recent_date = df_sov.columns[-1]
+        most_recent_date = df_sov.columns[-1]  # Get the most recent date
         df_sov = df_sov.sort_values(by=most_recent_date, ascending=False)
-        df_metrics = df_metrics.sort_values(by=("appearances", most_recent_date), ascending=False)
 
     return df_sov, df_metrics
 

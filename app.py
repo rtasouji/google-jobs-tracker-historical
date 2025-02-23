@@ -18,25 +18,36 @@ def get_db_connection():
     return psycopg2.connect(DB_URL, sslmode="require")
 
 # ✅ Ensure Table Exists Before Querying
+# ✅ Ensure Table Exists & Schema is Updated
 def initialize_database():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # ✅ Create table if it doesn't exist
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS share_of_voice (
             id SERIAL PRIMARY KEY,
             domain TEXT NOT NULL,
             sov FLOAT NOT NULL,
-            appearances INT NOT NULL,
-            avg_v_rank FLOAT NOT NULL,
-            avg_h_rank FLOAT NOT NULL,
+            appearances INT DEFAULT 0,
+            avg_v_rank FLOAT DEFAULT 0,
+            avg_h_rank FLOAT DEFAULT 0,
             date DATE NOT NULL
         );
     """)
 
+    # ✅ Add missing columns if they don’t exist
+    cursor.execute("ALTER TABLE share_of_voice ADD COLUMN IF NOT EXISTS appearances INT DEFAULT 0;")
+    cursor.execute("ALTER TABLE share_of_voice ADD COLUMN IF NOT EXISTS avg_v_rank FLOAT DEFAULT 0;")
+    cursor.execute("ALTER TABLE share_of_voice ADD COLUMN IF NOT EXISTS avg_h_rank FLOAT DEFAULT 0;")
+
     conn.commit()
     cursor.close()
     conn.close()
+
+# ✅ Run this function when the app starts
+initialize_database()
+
 
 # ✅ Initialize Database
 initialize_database()

@@ -95,7 +95,7 @@ if not df_sov.empty:
 
     fig.update_traces(mode="markers+lines", marker=dict(size=5))  # ✅ Adds hover points
     fig.update_layout(
-        hovermode="x unified",  # ✅ Shows all values on hover
+        hovermode="closest",  # ✅ Shows all values on hover
         xaxis=dict(tickangle=45),  # ✅ Rotate x-axis labels
         margin=dict(l=40, r=40, t=40, b=40),  # ✅ Improve spacing
     )

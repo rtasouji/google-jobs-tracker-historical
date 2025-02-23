@@ -35,7 +35,7 @@ def get_historical_data(start_date, end_date):
         st.warning("⚠️ Table 'share_of_voice' does not exist. No data available yet.")
         cursor.close()
         conn.close()
-        return pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
 
     # Fetch data within the selected date range
     query = """
@@ -56,17 +56,25 @@ def get_historical_data(start_date, end_date):
     df["date"] = pd.to_datetime(df["date"]).dt.date  
 
     # ✅ Aggregate duplicate (domain, date) pairs by averaging their SoV
-    df = df.groupby(["domain", "date"], as_index=False).agg({"sov": "mean"})
+    df_sov = df.groupby(["domain", "date"], as_index=False).agg({"sov": "mean"})
 
-    # ✅ Pivot the data: Domains as rows, Dates as columns
-    pivot_df = df.pivot(index="domain", columns="date", values="sov").fillna(0)
+    # ✅ Count total occurrences of each domain per date
+    df_count = df.groupby(["domain", "date"], as_index=False).size()
 
-    # ✅ Sort by the most recent date's SoV values (if data exists)
-    if not pivot_df.empty:
-        most_recent_date = pivot_df.columns[-1]  # Get the most recent date
-        pivot_df = pivot_df.sort_values(by=most_recent_date, ascending=False)
+    # ✅ Pivot both tables: Domains as rows, Dates as columns
+    pivot_sov = df_sov.pivot(index="domain", columns="date", values="sov").fillna(0)
+    pivot_count = df_count.pivot(index="domain", columns="date", values="size").fillna(0).astype(int)
 
-    return pivot_df
+    # ✅ Sort both tables by the most recent date’s values (if data exists)
+    if not pivot_sov.empty:
+        most_recent_date = pivot_sov.columns[-1]  # Get the most recent date
+        pivot_sov = pivot_sov.sort_values(by=most_recent_date, ascending=False)
+
+    if not pivot_count.empty:
+        most_recent_date = pivot_count.columns[-1]  # Get the most recent date
+        pivot_count = pivot_count.sort_values(by=most_recent_date, ascending=False)
+
+    return pivot_sov, pivot_count
 
 # ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
@@ -78,7 +86,7 @@ end_date = st.sidebar.date_input("End Date", datetime.date(2025, 2, 28))
 
 # ✅ Show Historical Trends
 st.write("### Share of Voice Over Time")
-df_sov = get_historical_data(start_date, end_date)
+df_sov, df_count = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
     # ✅ Limit to Top 15 domains to keep the chart clean
@@ -95,7 +103,7 @@ if not df_sov.empty:
             name=domain
         ))
 
-    # ✅ Add buttons for "Select All" and "Deselect All"
+    # ✅ Add buttons for "Show All" and "Hide All"
     fig.update_layout(
         updatemenus=[
             {
@@ -135,8 +143,12 @@ if not df_sov.empty:
 
     st.plotly_chart(fig)  # ✅ Display in Streamlit
 
-    # ✅ Show the DataFrame with dates as columns
-    st.write("#### Table of SoV Data")
+    # ✅ Show the SoV Table
+    st.write("#### Share of Voice (SoV) Table")
     st.dataframe(df_sov.style.format("{:.2f}"))  # ✅ Keep numbers formatted to 2 decimal places
+
+    # ✅ Show the Appearances Table
+    st.write("#### Domain Appearances Table")
+    st.dataframe(df_count)  # ✅ Show raw count of domain appearances
 else:
     st.write("No historical data available for the selected date range.")

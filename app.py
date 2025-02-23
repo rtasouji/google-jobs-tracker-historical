@@ -8,7 +8,7 @@ import datetime
 import os
 import plotly.graph_objects as go
 
-DB_URL = os.getenv("DB_URL")  # ✅ Use os.environ for GitHub Actions
+DB_URL = os.getenv("DB_URL")
 
 if not DB_URL:
     raise ValueError("❌ ERROR: DB_URL environment variable is not set!")
@@ -17,13 +17,11 @@ if not DB_URL:
 def get_db_connection():
     return psycopg2.connect(DB_URL, sslmode="require")
 
-# ✅ Ensure Table Exists Before Querying
 # ✅ Ensure Table Exists & Schema is Updated
 def initialize_database():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # ✅ Create table if it doesn't exist
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS share_of_voice (
             id SERIAL PRIMARY KEY,
@@ -36,7 +34,6 @@ def initialize_database():
         );
     """)
 
-    # ✅ Add missing columns if they don’t exist
     cursor.execute("ALTER TABLE share_of_voice ADD COLUMN IF NOT EXISTS appearances INT DEFAULT 0;")
     cursor.execute("ALTER TABLE share_of_voice ADD COLUMN IF NOT EXISTS avg_v_rank FLOAT DEFAULT 0;")
     cursor.execute("ALTER TABLE share_of_voice ADD COLUMN IF NOT EXISTS avg_h_rank FLOAT DEFAULT 0;")
@@ -45,11 +42,6 @@ def initialize_database():
     cursor.close()
     conn.close()
 
-# ✅ Run this function when the app starts
-initialize_database()
-
-
-# ✅ Initialize Database
 initialize_database()
 
 # ✅ Load job queries from CSV
@@ -151,9 +143,6 @@ def save_to_db(sov_data, appearances, avg_v_rank, avg_h_rank):
     conn.close()
 
 # ✅ Retrieve Historical Data
-# ✅ Retrieve Historical Data with Date Range Filter and Sorting
-# ✅ Retrieve Historical Data with Date Aggregation for Second Table
-# ✅ Retrieve Historical Data with Date Aggregation for Second Table
 def get_historical_data(start_date, end_date):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -168,12 +157,11 @@ def get_historical_data(start_date, end_date):
     table_exists = cursor.fetchone()[0]
     
     if not table_exists:
-        st.warning("⚠️ Table 'share_of_voice' does not exist. No data available yet.")
+        st.warning("⚠️ No data available yet.")
         cursor.close()
         conn.close()
         return pd.DataFrame(), pd.DataFrame()
 
-    # ✅ Fetch all stored metrics from the database
     query = """
         SELECT domain, date, sov, appearances, avg_v_rank, avg_h_rank
         FROM share_of_voice 
@@ -182,32 +170,19 @@ def get_historical_data(start_date, end_date):
     cursor.execute(query, (start_date, end_date))
     rows = cursor.fetchall()
 
-    # ✅ Convert to DataFrame
     df = pd.DataFrame(rows, columns=["domain", "date", "sov", "appearances", "avg_v_rank", "avg_h_rank"])
 
     cursor.close()
     conn.close()
 
-    # ✅ Convert 'date' column to only show the date (no hours)
     df["date"] = pd.to_datetime(df["date"]).dt.date  
 
-    # ✅ Aggregate by (domain, date) for SoV table
-    df_sov = df.groupby(["domain", "date"], as_index=False).agg({"sov": "mean"})
-    df_sov = df_sov.pivot(index="domain", columns="date", values="sov").fillna(0)
+    df_sov = df.pivot(index="domain", columns="date", values="sov").fillna(0)
 
-    # ✅ Aggregate by (domain, date) for the second table (appearances & rankings)
-    df_metrics = df.groupby(["domain", "date"], as_index=False).agg({
-        "appearances": "sum",    # ✅ Sum appearances count
-        "avg_v_rank": "mean",    # ✅ Average vertical rank
-        "avg_h_rank": "mean"     # ✅ Average horizontal rank
-    })
+    df_metrics = df.pivot(index="domain", columns="date", values=["appearances", "avg_v_rank", "avg_h_rank"])
 
-    # ✅ Pivot: Domains as rows, Dates as columns, with 3 sub-columns per date
-    df_metrics = df_metrics.pivot(index="domain", columns="date", values=["appearances", "avg_v_rank", "avg_h_rank"])
-    
-    # ✅ Sort SoV table by the most recent date’s SoV values (if data exists)
     if not df_sov.empty:
-        most_recent_date = df_sov.columns[-1]  # Get the most recent date
+        most_recent_date = df_sov.columns[-1]  
         df_sov = df_sov.sort_values(by=most_recent_date, ascending=False)
 
     return df_sov, df_metrics
@@ -253,7 +228,7 @@ if not df_sov.empty:
     st.write("#### Table of SoV Data")
     st.dataframe(df_sov.style.format("{:.2f}"))
 
-    st.write("### Additional Metrics")
+    st.write("### Additional Metrics Over Time")
     st.dataframe(df_metrics.style.format("{:.2f}"))
 else:
     st.write("No historical data available for the selected date range.")

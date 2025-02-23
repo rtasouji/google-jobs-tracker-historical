@@ -235,7 +235,7 @@ if not df_sov.empty:
             name=domain
         ))
 
-     fig.update_layout(
+    fig.update_layout(
         updatemenus=[
             {
                 "buttons": [

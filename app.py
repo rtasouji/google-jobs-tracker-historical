@@ -37,7 +37,7 @@ def get_historical_data(start_date, end_date):
         conn.close()
         return pd.DataFrame(), pd.DataFrame()
 
-    # Fetch data within the selected date range
+    # ✅ Fetch data within the selected date range
     query = """
         SELECT domain, date, sov 
         FROM share_of_voice 
@@ -46,9 +46,8 @@ def get_historical_data(start_date, end_date):
     cursor.execute(query, (start_date, end_date))
     rows = cursor.fetchall()
 
-    # Convert to DataFrame
+    # ✅ Convert to DataFrame
     df = pd.DataFrame(rows, columns=["domain", "date", "sov"])
-
     cursor.close()
     conn.close()
 
@@ -58,20 +57,21 @@ def get_historical_data(start_date, end_date):
     # ✅ Aggregate duplicate (domain, date) pairs by averaging their SoV
     df_sov = df.groupby(["domain", "date"], as_index=False).agg({"sov": "mean"})
 
-    # ✅ Count total occurrences of each domain per date
+    # ✅ Compute correct domain appearances per date (FIXED LOGIC)
     df_count = df.groupby(["domain", "date"], as_index=False).size()
+    df_count.rename(columns={"size": "appearances"}, inplace=True)  # ✅ Rename for clarity
 
     # ✅ Pivot both tables: Domains as rows, Dates as columns
     pivot_sov = df_sov.pivot(index="domain", columns="date", values="sov").fillna(0)
-    pivot_count = df_count.pivot(index="domain", columns="date", values="size").fillna(0).astype(int)
+    pivot_count = df_count.pivot(index="domain", columns="date", values="appearances").fillna(0).astype(int)
 
     # ✅ Sort both tables by the most recent date’s values (if data exists)
     if not pivot_sov.empty:
-        most_recent_date = pivot_sov.columns[-1]  # Get the most recent date
+        most_recent_date = pivot_sov.columns[-1]
         pivot_sov = pivot_sov.sort_values(by=most_recent_date, ascending=False)
 
     if not pivot_count.empty:
-        most_recent_date = pivot_count.columns[-1]  # Get the most recent date
+        most_recent_date = pivot_count.columns[-1]
         pivot_count = pivot_count.sort_values(by=most_recent_date, ascending=False)
 
     return pivot_sov, pivot_count
@@ -92,7 +92,7 @@ if not df_sov.empty:
     # ✅ Limit to Top 15 domains to keep the chart clean
     top_domains = df_sov.iloc[:15]
 
-    # ✅ Create a Plotly figure manually
+    # ✅ Create an interactive Plotly chart
     fig = go.Figure()
 
     for domain in top_domains.index:
@@ -108,16 +108,8 @@ if not df_sov.empty:
         updatemenus=[
             {
                 "buttons": [
-                    {
-                        "args": [{"visible": True}],  
-                        "label": "Show All",  
-                        "method": "update"
-                    },
-                    {
-                        "args": [{"visible": "legendonly"}],  
-                        "label": "Hide All",  
-                        "method": "update"
-                    }
+                    {"args": [{"visible": True}], "label": "Show All", "method": "update"},
+                    {"args": [{"visible": "legendonly"}], "label": "Hide All", "method": "update"}
                 ],
                 "direction": "right",
                 "showactive": True,
@@ -131,11 +123,7 @@ if not df_sov.empty:
 
     fig.update_layout(
         title="Share of Voice Over Time",
-        xaxis=dict(
-            title="Date",
-            tickangle=45,
-            tickformat="%Y-%m-%d"
-        ),
+        xaxis=dict(title="Date", tickangle=45, tickformat="%Y-%m-%d"),
         yaxis=dict(title="SoV (%)"),
         hovermode="x unified",  # ✅ Show only the hovered point's value
         margin=dict(l=40, r=40, t=40, b=40)
@@ -147,8 +135,8 @@ if not df_sov.empty:
     st.write("#### Share of Voice (SoV) Table")
     st.dataframe(df_sov.style.format("{:.2f}"))  # ✅ Keep numbers formatted to 2 decimal places
 
-    # ✅ Show the Appearances Table
-    st.write("#### Domain Appearances Table")
-    st.dataframe(df_count)  # ✅ Show raw count of domain appearances
+    # ✅ Show the Corrected Domain Appearances Table
+    st.write("#### Domain Appearances Table (Fixed)")
+    st.dataframe(df_count.style.format("{:d}"))  # ✅ Display total occurrences per domain
 else:
     st.write("No historical data available for the selected date range.")

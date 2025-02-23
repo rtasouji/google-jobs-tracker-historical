@@ -6,7 +6,6 @@ import psycopg2
 from collections import defaultdict
 import datetime
 import os
-import plotly.express as px
 import plotly.graph_objects as go
 
 DB_URL = os.getenv("DB_URL")  # ✅ Use os.environ for GitHub Actions
@@ -53,13 +52,21 @@ def get_historical_data(start_date, end_date):
     cursor.close()
     conn.close()
 
-    # ✅ Convert 'date' column to date only (removes hours)
-    df["date"] = pd.to_datetime(df["date"]).dt.date  # ✅ Keep only the date part
+    # ✅ Convert 'date' column to only show the date (no hours)
+    df["date"] = pd.to_datetime(df["date"]).dt.date  
 
     # ✅ Aggregate duplicate (domain, date) pairs by averaging their SoV
     df = df.groupby(["domain", "date"], as_index=False).agg({"sov": "mean"})
 
-    return df
+    # ✅ Pivot the data: Domains as rows, Dates as columns
+    pivot_df = df.pivot(index="domain", columns="date", values="sov").fillna(0)
+
+    # ✅ Sort by the most recent date's SoV values (if data exists)
+    if not pivot_df.empty:
+        most_recent_date = pivot_df.columns[-1]  # Get the most recent date
+        pivot_df = pivot_df.sort_values(by=most_recent_date, ascending=False)
+
+    return pivot_df
 
 # ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
@@ -75,17 +82,15 @@ df_sov = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
     # ✅ Limit to Top 15 domains to keep the chart clean
-    top_domains = df_sov.groupby("domain")["sov"].sum().nlargest(15).index
-    df_sov = df_sov[df_sov["domain"].isin(top_domains)]
+    top_domains = df_sov.iloc[:15]
 
-    # ✅ Create a Plotly figure manually (for better customization)
+    # ✅ Create a Plotly figure manually
     fig = go.Figure()
 
-    for domain in top_domains:
-        df_domain = df_sov[df_sov["domain"] == domain]
+    for domain in top_domains.index:
         fig.add_trace(go.Scatter(
-            x=df_domain["date"], 
-            y=df_domain["sov"], 
+            x=top_domains.columns, 
+            y=top_domains.loc[domain], 
             mode="markers+lines", 
             name=domain
         ))
@@ -130,8 +135,8 @@ if not df_sov.empty:
 
     st.plotly_chart(fig)  # ✅ Display in Streamlit
 
-    # ✅ Show the DataFrame as well
+    # ✅ Show the DataFrame with dates as columns
     st.write("#### Table of SoV Data")
-    st.dataframe(df_sov)
+    st.dataframe(df_sov.style.format("{:.2f}"))  # ✅ Keep numbers formatted to 2 decimal places
 else:
     st.write("No historical data available for the selected date range.")

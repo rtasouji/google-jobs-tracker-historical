@@ -175,12 +175,24 @@ def get_historical_data(start_date, end_date):
     cursor.close()
     conn.close()
 
+    # ✅ Convert 'date' column to only show the date (no hours)
     df["date"] = pd.to_datetime(df["date"]).dt.date  
 
-    df_sov = df.pivot(index="domain", columns="date", values="sov").fillna(0)
+    # ✅ Aggregate duplicate (domain, date) pairs before pivoting
+    df_agg = df.groupby(["domain", "date"], as_index=False).agg({
+        "sov": "mean",
+        "appearances": "sum",
+        "avg_v_rank": "mean",
+        "avg_h_rank": "mean"
+    })
 
-    df_metrics = df.pivot(index="domain", columns="date", values=["appearances", "avg_v_rank", "avg_h_rank"])
+    # ✅ Pivot for SoV Table (Domains as rows, Dates as columns)
+    df_sov = df_agg.pivot(index="domain", columns="date", values="sov").fillna(0)
 
+    # ✅ Pivot for Metrics Table (Domains as rows, Dates as columns with 3 sub-columns per date)
+    df_metrics = df_agg.pivot(index="domain", columns="date", values=["appearances", "avg_v_rank", "avg_h_rank"]).fillna(0)
+
+    # ✅ Sort SoV table by the most recent date’s SoV values (if data exists)
     if not df_sov.empty:
         most_recent_date = df_sov.columns[-1]  
         df_sov = df_sov.sort_values(by=most_recent_date, ascending=False)

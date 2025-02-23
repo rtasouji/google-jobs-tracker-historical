@@ -235,11 +235,29 @@ if not df_sov.empty:
             name=domain
         ))
 
-    fig.update_layout(
-        title="Visibility Score Over Time",
-        xaxis=dict(title="Date", tickangle=45, tickformat="%Y-%m-%d"),
-        yaxis=dict(title="SoV (%)"),
-        hovermode="x unified",
+     fig.update_layout(
+        updatemenus=[
+            {
+                "buttons": [
+                    {
+                        "args": [{"visible": True}],  
+                        "label": "Show All",  
+                        "method": "update"
+                    },
+                    {
+                        "args": [{"visible": "legendonly"}],  
+                        "label": "Hide All",  
+                        "method": "update"
+                    }
+                ],
+                "direction": "right",
+                "showactive": True,
+                "x": 1,
+                "xanchor": "right",
+                "y": 1.15,
+                "yanchor": "top",
+            }
+        ]
     )
 
     st.plotly_chart(fig)

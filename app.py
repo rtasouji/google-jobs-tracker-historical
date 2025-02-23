@@ -189,8 +189,11 @@ def get_historical_data(start_date, end_date):
     # ✅ Pivot for SoV Table (Domains as rows, Dates as columns)
     df_sov = df_agg.pivot(index="domain", columns="date", values="sov").fillna(0)
 
-    # ✅ Pivot for Metrics Table (Domains as rows, Dates as columns with 3 sub-columns per date)
+    # ✅ Pivot for Metrics Table (Fixing Column Order)
     df_metrics = df_agg.pivot(index="domain", columns="date", values=["appearances", "avg_v_rank", "avg_h_rank"]).fillna(0)
+
+    # ✅ Swap column levels to put dates at the top
+    df_metrics = df_metrics.swaplevel(axis=1).sort_index(axis=1)
 
     # ✅ Sort SoV table by the most recent date’s SoV values (if data exists)
     if not df_sov.empty:

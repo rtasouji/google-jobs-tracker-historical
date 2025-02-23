@@ -8,6 +8,9 @@ import datetime
 import os
 import plotly.graph_objects as go
 
+# Display Logo
+st.image("logo.png", width=200)  # Adjust width as needed
+
 DB_URL = os.getenv("DB_URL")
 
 if not DB_URL:

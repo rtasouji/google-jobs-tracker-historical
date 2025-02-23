@@ -130,8 +130,8 @@ if not df_sov.empty:
 
     st.plotly_chart(fig)  # ✅ Display in Streamlit
 
-    # ✅ Show the DataFrame as well (Removing unnecessary index column)
+    # ✅ Show the DataFrame as well
     st.write("#### Table of SoV Data")
-    st.dataframe(df_sov.reset_index(drop=True))  # ✅ Reset index to remove extra column
+    st.dataframe(df_sov)
 else:
     st.write("No historical data available for the selected date range.")

@@ -206,7 +206,7 @@ def get_historical_data(start_date, end_date):
     return df_sov, df_metrics
 
 # ✅ Streamlit UI
-st.title("Google Jobs Share of Voice Tracker")
+st.title("Google Jobs Visibility Tracker")
 
 # ✅ Date Range Selector
 st.sidebar.header("Date Range Selector")
@@ -220,7 +220,7 @@ if st.button("Fetch & Store Data"):
     st.success("Data stored successfully!")
 
 # ✅ Show Historical Trends
-st.write("### Share of Voice Over Time")
+st.write("### Visibility Over Time")
 df_sov, df_metrics = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
@@ -236,14 +236,14 @@ if not df_sov.empty:
         ))
 
     fig.update_layout(
-        title="Share of Voice Over Time",
+        title="Visibility Score Over Time",
         xaxis=dict(title="Date", tickangle=45, tickformat="%Y-%m-%d"),
         yaxis=dict(title="SoV (%)"),
         hovermode="x unified",
     )
 
     st.plotly_chart(fig)
-    st.write("#### Table of SoV Data")
+    st.write("#### Table of Visibility Score Data")
     st.dataframe(df_sov.style.format("{:.2f}"))
 
     st.write("### Additional Metrics Over Time")

@@ -152,6 +152,7 @@ def save_to_db(sov_data, appearances, avg_v_rank, avg_h_rank):
 
 # ✅ Retrieve Historical Data
 # ✅ Retrieve Historical Data with Date Range Filter and Sorting
+# ✅ Retrieve Historical Data with Date Aggregation for Second Table
 def get_historical_data(start_date, end_date):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -189,17 +190,19 @@ def get_historical_data(start_date, end_date):
     # ✅ Convert 'date' column to only show the date (no hours)
     df["date"] = pd.to_datetime(df["date"]).dt.date  
 
-    # ✅ Aggregate duplicate (domain, date) pairs by averaging numeric columns
-    df = df.groupby(["domain", "date"], as_index=False).agg({
-        "sov": "mean",
+    # ✅ Aggregate by (domain, date) for SoV table
+    df_sov = df.groupby(["domain", "date"], as_index=False).agg({"sov": "mean"})
+    df_sov = df_sov.pivot(index="domain", columns="date", values="sov").fillna(0)
+
+    # ✅ Aggregate by date for the **second table**
+    df_metrics = df.groupby(["date"], as_index=False).agg({
         "appearances": "sum",    # ✅ Sum appearances count
         "avg_v_rank": "mean",    # ✅ Average vertical rank
         "avg_h_rank": "mean"     # ✅ Average horizontal rank
     })
 
-    # ✅ Pivot the data: Domains as rows, Dates as columns
-    df_sov = df.pivot(index="domain", columns="date", values="sov").fillna(0)
-    df_metrics = df.pivot(index="domain", columns="date", values=["appearances", "avg_v_rank", "avg_h_rank"]).fillna(0)
+    # ✅ Pivot: Make Dates Columns
+    df_metrics = df_metrics.set_index("date").T  # Transpose so dates become columns
 
     # ✅ Sort by the most recent date’s SoV values (if data exists)
     if not df_sov.empty:

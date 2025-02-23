@@ -6,7 +6,8 @@ import psycopg2
 from collections import defaultdict
 import datetime
 import os
-import plotly.express as px  # ✅ Interactive Charting Library
+import plotly.express as px
+import plotly.graph_objects as go
 
 DB_URL = os.getenv("DB_URL")  # ✅ Use os.environ for GitHub Actions
 
@@ -77,22 +78,54 @@ if not df_sov.empty:
     top_domains = df_sov.groupby("domain")["sov"].sum().nlargest(15).index
     df_sov = df_sov[df_sov["domain"].isin(top_domains)]
 
-    # ✅ Create an interactive line chart (Only showing Date, NO hours)
-    fig = px.line(
-        df_sov, x="date", y="sov", color="domain", 
-        title="Share of Voice Over Time",
-        labels={"sov": "Share of Voice (%)", "date": "Date"},
-        hover_name="domain", hover_data={"sov": ":.2f"}  # ✅ Show SoV, NO time
+    # ✅ Create a Plotly figure manually (for better customization)
+    fig = go.Figure()
+
+    for domain in top_domains:
+        df_domain = df_sov[df_sov["domain"] == domain]
+        fig.add_trace(go.Scatter(
+            x=df_domain["date"], 
+            y=df_domain["sov"], 
+            mode="markers+lines", 
+            name=domain
+        ))
+
+    # ✅ Add buttons for "Select All" and "Deselect All"
+    fig.update_layout(
+        updatemenus=[
+            {
+                "buttons": [
+                    {
+                        "args": [{"visible": True}],  
+                        "label": "Show All",  
+                        "method": "update"
+                    },
+                    {
+                        "args": [{"visible": "legendonly"}],  
+                        "label": "Hide All",  
+                        "method": "update"
+                    }
+                ],
+                "direction": "right",
+                "showactive": True,
+                "x": 1,
+                "xanchor": "right",
+                "y": 1.15,
+                "yanchor": "top",
+            }
+        ]
     )
 
-    fig.update_traces(mode="markers+lines", marker=dict(size=5))  # ✅ Adds hover points
     fig.update_layout(
-        hovermode="closest",  # ✅ Show value of hovered point
+        title="Share of Voice Over Time",
         xaxis=dict(
-            tickangle=45,  # ✅ Rotate x-axis labels for better visibility
-            tickformat="%Y-%m-%d"  # ✅ Show only DATE (no hours)
+            title="Date",
+            tickangle=45,
+            tickformat="%Y-%m-%d"
         ),
-        margin=dict(l=40, r=40, t=40, b=40)  # ✅ Improve spacing
+        yaxis=dict(title="SoV (%)"),
+        hovermode="x unified",  # ✅ Show only the hovered point's value
+        margin=dict(l=40, r=40, t=40, b=40)
     )
 
     st.plotly_chart(fig)  # ✅ Display in Streamlit

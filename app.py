@@ -206,7 +206,7 @@ def get_historical_data(start_date, end_date):
     return df_sov, df_metrics
 
 # ✅ Streamlit UI
-st.title("Google Jobs Visibility Tracker")
+st.title("Google for Jobs Visibility Tracker")
 
 # ✅ Date Range Selector
 st.sidebar.header("Date Range Selector")

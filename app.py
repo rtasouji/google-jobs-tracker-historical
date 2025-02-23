@@ -52,18 +52,13 @@ def get_historical_data(start_date, end_date):
     cursor.close()
     conn.close()
 
+    # ✅ Convert 'date' column to date only (removes hours)
+    df["date"] = pd.to_datetime(df["date"]).dt.date  # ✅ Keep only the date part
+
     # ✅ Aggregate duplicate (domain, date) pairs by averaging their SoV
     df = df.groupby(["domain", "date"], as_index=False).agg({"sov": "mean"})
 
-    # ✅ Pivot the data
-    pivot_df = df.pivot(index="domain", columns="date", values="sov")
-
-    # ✅ Sort by the most recent date’s SoV values (if data exists)
-    if not pivot_df.empty:
-        most_recent_date = pivot_df.columns[-1]  # Get the most recent date
-        pivot_df = pivot_df.sort_values(by=most_recent_date, ascending=False)
-
-    return pivot_df
+    return df
 
 # ✅ Streamlit UI
 st.title("Google Jobs Share of Voice Tracker")
@@ -78,26 +73,26 @@ st.write("### Share of Voice Over Time")
 df_sov = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
-    # ✅ Limit to Top 10 domains to keep the chart clean
-    df_sov = df_sov.iloc[:10]
+    # ✅ Limit to Top 15 domains to keep the chart clean
+    top_domains = df_sov.groupby("domain")["sov"].sum().nlargest(15).index
+    df_sov = df_sov[df_sov["domain"].isin(top_domains)]
 
-    # ✅ Convert to long format for Plotly
-    df_sov_reset = df_sov.T.reset_index()
-    df_sov_reset = df_sov_reset.melt(id_vars="date", var_name="domain", value_name="sov")
-
-    # ✅ Create an interactive line chart with hover tooltips
+    # ✅ Create an interactive line chart (Only showing Date, NO hours)
     fig = px.line(
-        df_sov_reset, x="date", y="sov", color="domain", 
+        df_sov, x="date", y="sov", color="domain", 
         title="Share of Voice Over Time",
         labels={"sov": "Share of Voice (%)", "date": "Date"},
-        hover_name="domain", hover_data={"sov": ":.2f"}  # Shows exact SoV values on hover
+        hover_name="domain", hover_data={"sov": ":.2f"}  # ✅ Show SoV, NO time
     )
 
     fig.update_traces(mode="markers+lines", marker=dict(size=5))  # ✅ Adds hover points
     fig.update_layout(
-        hovermode="closest",  # ✅ Shows all values on hover
-        xaxis=dict(tickangle=45),  # ✅ Rotate x-axis labels
-        margin=dict(l=40, r=40, t=40, b=40),  # ✅ Improve spacing
+        hovermode="closest",  # ✅ Show value of hovered point
+        xaxis=dict(
+            tickangle=45,  # ✅ Rotate x-axis labels for better visibility
+            tickformat="%Y-%m-%d"  # ✅ Show only DATE (no hours)
+        ),
+        margin=dict(l=40, r=40, t=40, b=40)  # ✅ Improve spacing
     )
 
     st.plotly_chart(fig)  # ✅ Display in Streamlit

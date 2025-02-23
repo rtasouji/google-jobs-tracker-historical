@@ -206,6 +206,7 @@ def get_historical_data(start_date, end_date):
     return df_sov, df_metrics
 
 # ✅ Streamlit UI
+# ✅ Streamlit UI
 st.title("Google for Jobs Visibility Tracker")
 
 # ✅ Date Range Selector
@@ -232,7 +233,8 @@ if not df_sov.empty:
             x=top_domains.columns, 
             y=top_domains.loc[domain], 
             mode="markers+lines", 
-            name=domain
+            name=domain,
+            visible=True  # Initially set all traces to be visible
         ))
 
     fig.update_layout(
@@ -241,6 +243,14 @@ if not df_sov.empty:
         yaxis=dict(title="SoV (%)"),
         hovermode="x unified",
     )
+
+    # Add "Show All" and "Hide All" buttons
+    if st.button("Show All"):
+        for trace in fig.data:
+            trace.visible = True
+    if st.button("Hide All"):
+        for trace in fig.data:
+            trace.visible = 'legendonly'  # This hides the trace but keeps it in the legend
 
     st.plotly_chart(fig)
     st.write("#### Table of Visibility Score Data")

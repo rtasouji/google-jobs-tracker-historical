@@ -8,7 +8,10 @@ import datetime
 import os
 import plotly.graph_objects as go
 
-DB_URL = os.getenv("DB_URL")  # ✅ Use os.environ for GitHub Actions
+# Display Logo
+st.image("logo.png", width=200)  # Adjust width as needed
+
+DB_URL = os.getenv("DB_URL")
 
 if not DB_URL:
     raise ValueError("❌ ERROR: DB_URL environment variable is not set!")
@@ -17,12 +20,11 @@ if not DB_URL:
 def get_db_connection():
     return psycopg2.connect(DB_URL, sslmode="require")
 
-# ✅ Ensure Table Exists Before Querying
+# ✅ Ensure Table Exists & Schema is Updated
 def initialize_database():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # ✅ Create table if it doesn't exist
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS share_of_voice (
             id SERIAL PRIMARY KEY,
@@ -35,7 +37,6 @@ def initialize_database():
         );
     """)
 
-    # ✅ Add missing columns if they don’t exist
     cursor.execute("ALTER TABLE share_of_voice ADD COLUMN IF NOT EXISTS appearances INT DEFAULT 0;")
     cursor.execute("ALTER TABLE share_of_voice ADD COLUMN IF NOT EXISTS avg_v_rank FLOAT DEFAULT 0;")
     cursor.execute("ALTER TABLE share_of_voice ADD COLUMN IF NOT EXISTS avg_h_rank FLOAT DEFAULT 0;")
@@ -44,7 +45,6 @@ def initialize_database():
     cursor.close()
     conn.close()
 
-# ✅ Run this function when the app starts
 initialize_database()
 
 # ✅ Load job queries from CSV
@@ -145,10 +145,25 @@ def save_to_db(sov_data, appearances, avg_v_rank, avg_h_rank):
     cursor.close()
     conn.close()
 
-# ✅ Retrieve Historical Data with Correct Table Layout
+# ✅ Retrieve Historical Data
 def get_historical_data(start_date, end_date):
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_name = 'share_of_voice'
+        );
+    """)
+    
+    table_exists = cursor.fetchone()[0]
+    
+    if not table_exists:
+        st.warning("⚠️ No data available yet.")
+        cursor.close()
+        conn.close()
+        return pd.DataFrame(), pd.DataFrame()
 
     query = """
         SELECT domain, date, sov, appearances, avg_v_rank, avg_h_rank
@@ -159,22 +174,39 @@ def get_historical_data(start_date, end_date):
     rows = cursor.fetchall()
 
     df = pd.DataFrame(rows, columns=["domain", "date", "sov", "appearances", "avg_v_rank", "avg_h_rank"])
+
     cursor.close()
     conn.close()
 
     # ✅ Convert 'date' column to only show the date (no hours)
     df["date"] = pd.to_datetime(df["date"]).dt.date  
 
-    # ✅ Pivot for the first table (SoV)
-    df_sov = df.pivot(index="domain", columns="date", values="sov").fillna(0)
+    # ✅ Aggregate duplicate (domain, date) pairs before pivoting
+    df_agg = df.groupby(["domain", "date"], as_index=False).agg({
+        "sov": "mean",
+        "appearances": "sum",
+        "avg_v_rank": "mean",
+        "avg_h_rank": "mean"
+    })
 
-    # ✅ Pivot for the second table (Metrics under each date)
-    df_metrics = df.pivot(index="domain", columns="date", values=["appearances", "avg_v_rank", "avg_h_rank"])
-    
+    # ✅ Pivot for SoV Table (Domains as rows, Dates as columns)
+    df_sov = df_agg.pivot(index="domain", columns="date", values="sov").fillna(0)
+
+    # ✅ Pivot for Metrics Table (Fixing Column Order)
+    df_metrics = df_agg.pivot(index="domain", columns="date", values=["appearances", "avg_v_rank", "avg_h_rank"]).fillna(0)
+
+    # ✅ Swap column levels to put dates at the top
+    df_metrics = df_metrics.swaplevel(axis=1).sort_index(axis=1)
+
+    # ✅ Sort SoV table by the most recent date’s SoV values (if data exists)
+    if not df_sov.empty:
+        most_recent_date = df_sov.columns[-1]  
+        df_sov = df_sov.sort_values(by=most_recent_date, ascending=False)
+
     return df_sov, df_metrics
 
 # ✅ Streamlit UI
-st.title("Google Jobs Share of Voice Tracker")
+st.title("Google for Jobs Visibility Tracker")
 
 # ✅ Date Range Selector
 st.sidebar.header("Date Range Selector")
@@ -188,7 +220,7 @@ if st.button("Fetch & Store Data"):
     st.success("Data stored successfully!")
 
 # ✅ Show Historical Trends
-st.write("### Share of Voice Over Time")
+st.write("### Visibility Over Time")
 df_sov, df_metrics = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
@@ -203,22 +235,18 @@ if not df_sov.empty:
             name=domain
         ))
 
-    # ✅ Add "Show All" & "Hide All" buttons
     fig.update_layout(
-        updatemenus=[{
-            "buttons": [
-                {"args": [{"visible": True}], "label": "Show All", "method": "update"},
-                {"args": [{"visible": "legendonly"}], "label": "Hide All", "method": "update"}
-            ],
-            "direction": "right", "x": 1, "y": 1.15
-        }],
-        title="Share of Voice Over Time",
+        title="Visibility Score Over Time",
+        xaxis=dict(title="Date", tickangle=45, tickformat="%Y-%m-%d"),
+        yaxis=dict(title="SoV (%)"),
         hovermode="x unified",
     )
 
     st.plotly_chart(fig)
-    st.write("#### Table of SoV Data")
-    st.dataframe(df_sov)
+    st.write("#### Table of Visibility Score Data")
+    st.dataframe(df_sov.style.format("{:.2f}"))
 
-    st.write("### Additional Metrics")
-    st.dataframe(df_metrics)
+    st.write("### Additional Metrics Over Time")
+    st.dataframe(df_metrics.style.format("{:.2f}"))
+else:
+    st.write("No historical data available for the selected date range.")

@@ -240,7 +240,7 @@ if not df_sov.empty:
         ))
 
     fig1.update_layout(
-        title="Share of Voice Over Time",
+        title="Domains visibility over time",
         xaxis_title="Date",
         yaxis_title="Share of Voice (%)",
         updatemenus=[

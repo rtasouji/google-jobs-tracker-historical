@@ -203,7 +203,10 @@ def get_historical_data(start_date, end_date):
         most_recent_date = df_sov.columns[-1]  
         df_sov = df_sov.sort_values(by=most_recent_date, ascending=False)
 
-    return df_sov, df_metrics
+    # ✅ Create appearances pivot table
+    df_appearances = df_agg.pivot(index="domain", columns="date", values="appearances").fillna(0)
+
+    return df_sov, df_metrics, df_appearances
 
 # ✅ Streamlit UI
 st.title("Google for Jobs Visibility Tracker")
@@ -221,21 +224,25 @@ if st.button("Fetch & Store Data"):
 
 # ✅ Show Historical Trends
 st.write("### Visibility Over Time")
-df_sov, df_metrics = get_historical_data(start_date, end_date)
+df_sov, df_metrics, df_appearances = get_historical_data(start_date, end_date)
 
 if not df_sov.empty:
+    # First chart: Share of Voice
     top_domains = df_sov.iloc[:15]
-    fig = go.Figure()
+    fig1 = go.Figure()
 
     for domain in top_domains.index:
-        fig.add_trace(go.Scatter(
+        fig1.add_trace(go.Scatter(
             x=top_domains.columns, 
             y=top_domains.loc[domain], 
             mode="markers+lines", 
             name=domain
         ))
 
-    fig.update_layout(
+    fig1.update_layout(
+        title="Share of Voice Over Time",
+        xaxis_title="Date",
+        yaxis_title="Share of Voice (%)",
         updatemenus=[
             {
                 "buttons": [
@@ -260,10 +267,52 @@ if not df_sov.empty:
         ]
     )
 
-    st.plotly_chart(fig)
+    st.plotly_chart(fig1)
     st.write("#### Table of Visibility Score Data")
     st.dataframe(df_sov.style.format("{:.2f}"))
 
+    # Second chart: Appearances
+    st.write("### Appearances Over Time")
+    top_domains_appearances = df_appearances.loc[top_domains.index]  # Use same top domains as SoV chart
+    fig2 = go.Figure()
+
+    for domain in top_domains_appearances.index:
+        fig2.add_trace(go.Scatter(
+            x=top_domains_appearances.columns,
+            y=top_domains_appearances.loc[domain],
+            mode="markers+lines",
+            name=domain
+        ))
+
+    fig2.update_layout(
+        title="Domain Appearances Over Time",
+        xaxis_title="Date",
+        yaxis_title="Number of Appearances",
+        updatemenus=[
+            {
+                "buttons": [
+                    {
+                        "args": [{"visible": True}],
+                        "label": "Show All",
+                        "method": "update"
+                    },
+                    {
+                        "args": [{"visible": "legendonly"}],
+                        "label": "Hide All",
+                        "method": "update"
+                    }
+                ],
+                "direction": "right",
+                "showactive": True,
+                "x": 1,
+                "xanchor": "right",
+                "y": 1.15,
+                "yanchor": "top",
+            }
+        ]
+    )
+
+    st.plotly_chart(fig2)
     st.write("### Additional Metrics Over Time")
     st.dataframe(df_metrics.style.format("{:.2f}"))
 else:

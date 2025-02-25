@@ -3,7 +3,7 @@ name: Run Streamlit Job Daily
 on:
   schedule:
     - cron: '0 6 * * *'  # Runs every day at 6 AM UTC
-  workflow_dispatch:  # 👈 Allows manual trigger
+  workflow_dispatch:  # Allows manual trigger
 
 jobs:
   run-script:
@@ -18,10 +18,24 @@ jobs:
           python-version: '3.9'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          echo "📦 Installing dependencies..."
+          pip install -r requirements.txt
+
+      - name: Debug Environment Variables
+        run: |
+          echo "🔍 Debugging Environment Variables..."
+          echo "DB_URL=${{ secrets.DB_URL }}" | sed 's/./& /g'  # Masked output
+          echo "SERP_API_KEY=${{ secrets.SERP_API_KEY }}" | sed 's/./& /g'  # Masked output
 
       - name: Run the script
         env:
-          DB_URL: ${{ secrets.DB_URL }}    # ✅ Pass DB_URL secret to the environment
-          SERP_API_KEY: ${{ secrets.SERP_API_KEY }}  # ✅ Pass SERP_API_KEY secret
-        run: python app.py
+          DB_URL: ${{ secrets.DB_URL }}
+          SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
+        run: |
+          echo "🚀 Running app.py..."
+          python app.py
+
+      - name: Capture Logs
+        if: failure()
+        run: cat logs.txt || echo "⚠️ No logs captured."

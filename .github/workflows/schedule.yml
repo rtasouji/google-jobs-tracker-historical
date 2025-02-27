@@ -32,7 +32,7 @@ jobs:
         env:
           DB_URL: ${{ secrets.DB_URL }}
           SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
-        run: |
+        run: python app.py github
           echo "🚀 Running app.py..."
           python -c "import os; print(f'DB_URL length: {len(os.getenv(\"DB_URL\") or \"\")}'); print(f'SERP_API_KEY length: {len(os.getenv(\"SERP_API_KEY\") or \"\")}')"
           python app.py

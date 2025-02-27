@@ -434,3 +434,11 @@ if not df_sov.empty:
 else:
     st.write("No historical data available for the selected date range.")
 
+import sys
+
+if len(sys.argv) > 1 and sys.argv[1] == "github":
+    print("🚀 Running automated fetch & store process (GitHub workflow)")
+    sov_data, appearances, avg_v_rank, avg_h_rank = compute_sov()
+    save_to_db(sov_data, appearances, avg_v_rank, avg_h_rank)
+    print("✅ Data stored successfully!")
+

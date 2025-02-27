@@ -11,9 +11,6 @@ import plotly.graph_objects as go
 import logging
 import sys
 
-# Run the function to delete today's incorrect data
-delete_today_data()
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -444,14 +441,19 @@ if len(sys.argv) > 1 and sys.argv[1] == "github":
     sov_data, appearances, avg_v_rank, avg_h_rank = compute_sov()
     save_to_db(sov_data, appearances, avg_v_rank, avg_h_rank)
     print("✅ Data stored successfully!")
+
+# ✅ Define delete_today_data AFTER get_db_connection
 def delete_today_data():
     conn = get_db_connection()
     cursor = conn.cursor()
-    
     today = datetime.date.today()
-    cursor.execute("DELETE FROM share_of_voice WHERE date = %s;", (today,))
-    
+
+    cursor.execute("DELETE FROM share_of_voice WHERE date = %s", (today,))
     conn.commit()
     cursor.close()
     conn.close()
-    print(f"✅ Deleted all records for {today} from the database.")
+    print(f"✅ Deleted today's records ({today}) from database.")
+
+# ✅ Ensure this is called only when needed
+if __name__ == "__main__":
+    delete_today_data()  # ✅ Now this won't fail

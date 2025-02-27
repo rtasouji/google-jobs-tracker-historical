@@ -10,6 +10,20 @@ import plotly.graph_objects as go
 # Add at the top of your app.py
 import logging
 import sys
+def delete_today_data():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    today = datetime.date.today()
+    cursor.execute("DELETE FROM share_of_voice WHERE date = %s;", (today,))
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+    print(f"✅ Deleted all records for {today} from the database.")
+
+# Run the function to delete today's incorrect data
+delete_today_data()
 
 # Configure logging
 logging.basicConfig(

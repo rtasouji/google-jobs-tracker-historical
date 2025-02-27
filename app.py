@@ -433,3 +433,10 @@ if not df_sov.empty:
     st.dataframe(df_metrics.style.format("{:.2f}"))
 else:
     st.write("No historical data available for the selected date range.")
+
+if __name__ == "__main__":
+    print("🔄 Running scheduled job: Fetching & Storing Data...")
+    sov_data, appearances, avg_v_rank, avg_h_rank = compute_sov()
+    save_to_db(sov_data, appearances, avg_v_rank, avg_h_rank)
+    print("✅ Data fetched and stored successfully!")
+

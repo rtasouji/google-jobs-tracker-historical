@@ -441,19 +441,3 @@ if len(sys.argv) > 1 and sys.argv[1] == "github":
     sov_data, appearances, avg_v_rank, avg_h_rank = compute_sov()
     save_to_db(sov_data, appearances, avg_v_rank, avg_h_rank)
     print("✅ Data stored successfully!")
-
-# ✅ Define delete_today_data AFTER get_db_connection
-def delete_today_data():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    today = datetime.date.today()
-
-    cursor.execute("DELETE FROM share_of_voice WHERE date = %s", (today,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    print(f"✅ Deleted today's records ({today}) from database.")
-
-# ✅ Ensure this is called only when needed
-if __name__ == "__main__":
-    delete_today_data()  # ✅ Now this won't fail

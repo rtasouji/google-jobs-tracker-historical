@@ -7,7 +7,123 @@ from collections import defaultdict
 import datetime
 import os
 import plotly.graph_objects as go
+# Add at the top of your app.py
+import logging
+import sys
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("logs.txt"),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger("job-tracker")
+
+# Then add throughout your code:
+
+# In get_google_jobs_results function:
+def get_google_jobs_results(query, location):
+    logger.info(f"Fetching results for query: {query} in location: {location}")
+    SERP_API_KEY = os.getenv("SERP_API_KEY")
+    
+    if not SERP_API_KEY:
+        logger.error("SERP_API_KEY is not set!")
+        raise ValueError("❌ ERROR: SERP_API_KEY environment variable is not set!")
+    
+    # Log a masked version of the key for debugging
+    logger.info(f"Using SERP API key: {SERP_API_KEY[:4]}...{SERP_API_KEY[-4:]}")
+    
+    url = "https://serpapi.com/search"
+    params = {
+        "engine": "google_jobs",
+        "q": query,
+        "location": location,
+        "hl": "en",
+        "api_key": SERP_API_KEY
+    }
+    
+    logger.info(f"Sending request to SerpAPI with params: {params}")
+    
+    response = requests.get(url, params=params)
+    
+    logger.info(f"SerpAPI response status code: {response.status_code}")
+    
+    if response.status_code != 200:
+        logger.error(f"Failed to fetch data from SerpAPI. Status Code: {response.status_code}")
+        logger.error(f"Response content: {response.text}")
+        raise RuntimeError(f"❌ ERROR: Failed to fetch data from SerpAPI. Status Code: {response.status_code}")
+    
+    results = response.json().get("jobs_results", [])
+    logger.info(f"Received {len(results)} job results")
+    return results
+
+# In compute_sov function:
+def compute_sov():
+    logger.info("Starting compute_sov function")
+    domain_sov = defaultdict(float)
+    domain_appearances = defaultdict(int)
+    domain_v_rank = defaultdict(list)
+    domain_h_rank = defaultdict(list)
+
+    jobs_data = load_jobs()
+    logger.info(f"Loaded {len(jobs_data)} job queries from CSV")
+    
+    total_sov = 0
+
+    for job_query in jobs_data:
+        job_title = job_query["job_title"]
+        location = job_query["location"]
+        logger.info(f"Processing job query: {job_title} in {location}")
+
+        try:
+            jobs = get_google_jobs_results(job_title, location)
+            logger.info(f"Retrieved {len(jobs)} job results for query")
+            
+            if not jobs:
+                logger.warning(f"No jobs found for query: {job_title} in {location}")
+            
+            # Rest of your function...
+            
+        except Exception as e:
+            logger.error(f"Error processing job query {job_title}: {str(e)}")
+            continue
+
+    logger.info(f"Computed SoV for {len(domain_sov)} domains with total SoV: {total_sov}")
+    return domain_sov, domain_appearances, domain_avg_v_rank, domain_avg_h_rank
+
+# In save_to_db function:
+def save_to_db(sov_data, appearances, avg_v_rank, avg_h_rank):
+    logger.info(f"Saving data for {len(sov_data)} domains to database")
+    
+    if not sov_data:
+        logger.warning("No SoV data to save to database")
+        return
+        
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        today = datetime.date.today()
+        logger.info(f"Saving data for date: {today}")
+
+        for domain in sov_data:
+            logger.info(f"Inserting data for domain: {domain}, SoV: {sov_data[domain]}")
+            cursor.execute("""
+                INSERT INTO share_of_voice (domain, sov, appearances, avg_v_rank, avg_h_rank, date)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (domain, round(sov_data[domain], 2), appearances[domain], 
+                  avg_v_rank[domain], avg_h_rank[domain], today))
+
+        conn.commit()
+        logger.info("Database commit successful")
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Database error: {str(e)}")
+        raise
 # Display Logo
 st.image("logo.png", width=200)  # Adjust width as needed
 

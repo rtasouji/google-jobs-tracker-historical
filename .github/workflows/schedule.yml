@@ -44,7 +44,7 @@ jobs:
         run: |
           echo "🔍 Checking if data was stored..."
           pip install psycopg2-binary
-          python -c "
+          python - <<EOF
 import psycopg2, os, datetime
 try:
     conn = psycopg2.connect(os.getenv('DB_URL'), sslmode='require')
@@ -59,7 +59,7 @@ try:
     conn.close()
 except Exception as e:
     print(f'❌ Error checking database: {str(e)}')
-"
+EOF
 
       - name: Capture Logs
         run: cat logs.txt || echo "⚠️ No logs captured."

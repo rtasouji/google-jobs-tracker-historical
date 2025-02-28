@@ -50,7 +50,7 @@ try:
     conn = psycopg2.connect(os.getenv('DB_URL'), sslmode='require')
     cursor = conn.cursor()
     today = datetime.date.today()
-    cursor.execute('SELECT COUNT(*) FROM share_of_voice WHERE date = %s', (today,))
+    cursor.execute('SELECT COUNT(*) FROM share_of_voice WHERE date::date = %s::date', (today,))
     count = cursor.fetchone()[0]
     print(f'✅ Records found for today: {count}')
     if count == 0:

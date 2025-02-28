@@ -44,22 +44,22 @@ jobs:
         run: |
           echo "🔍 Checking if data was stored..."
           pip install psycopg2-binary
-          python - <<EOF
-import psycopg2, os, datetime
-try:
-    conn = psycopg2.connect(os.getenv('DB_URL'), sslmode='require')
-    cursor = conn.cursor()
-    today = datetime.date.today()
-    cursor.execute('SELECT COUNT(*) FROM share_of_voice WHERE date::date = %s::date', (today,))
-    count = cursor.fetchone()[0]
-    print(f'✅ Records found for today: {count}')
-    if count == 0:
-        print('⚠️ WARNING: No records were stored for today!')
-    cursor.close()
-    conn.close()
-except Exception as e:
-    print(f'❌ Error checking database: {str(e)}')
-EOF
+          python - <<'EOF'
+          import psycopg2, os, datetime
+          try:
+              conn = psycopg2.connect(os.getenv('DB_URL'), sslmode='require')
+              cursor = conn.cursor()
+              today = datetime.date.today()
+              cursor.execute('SELECT COUNT(*) FROM share_of_voice WHERE date::date = %s::date', (today,))
+              count = cursor.fetchone()[0]
+              print(f'✅ Records found for today: {count}')
+              if count == 0:
+                  print('⚠️ WARNING: No records were stored for today!')
+              cursor.close()
+              conn.close()
+          except Exception as e:
+              print(f'❌ Error checking database: {str(e)}')
+          EOF
 
       - name: Capture Logs
         run: cat logs.txt || echo "⚠️ No logs captured."

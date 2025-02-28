@@ -34,7 +34,7 @@ jobs:
           SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
         run: |
           echo "🚀 Running app.py with 'github' argument..."
-          python -c "import os; print(f'DB_URL length: {len(os.getenv(\"DB_URL\") or \"\")}'); print(f'SERP_API_KEY length: {len(os.getenv(\"SERP_API_KEY\") or \"\")}'))"
+          python -c "import os; print(f'DB_URL length: {len(os.getenv('DB_URL') or '')}'); print(f'SERP_API_KEY length: {len(os.getenv('SERP_API_KEY') or '')}')"
           python app.py github
           echo "✅ Script execution completed"
 

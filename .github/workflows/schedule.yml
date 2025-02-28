@@ -25,8 +25,8 @@ jobs:
       - name: Debug Environment Variables
         run: |
           echo "🔍 Debugging Environment Variables..."
-          if [ -z "${{ secrets.DB_URL }}" ]; then echo "⚠️ DB_URL is NOT set!"; else echo "✅ DB_URL is set."; fi
-          if [ -z "${{ secrets.SERP_API_KEY }}" ]; then echo "⚠️ SERP_API_KEY is NOT set!"; else echo "✅ SERP_API_KEY is set."; fi
+          [[ -z "${{ secrets.DB_URL }}" ]] && echo "⚠️ DB_URL is NOT set!" || echo "✅ DB_URL is set."
+          [[ -z "${{ secrets.SERP_API_KEY }}" ]] && echo "⚠️ SERP_API_KEY is NOT set!" || echo "✅ SERP_API_KEY is set."
 
       - name: Run the script
         env:
@@ -34,7 +34,7 @@ jobs:
           SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
         run: |
           echo "🚀 Running app.py with 'github' argument..."
-          python -c "import os; print(f'DB_URL length: {len(os.getenv(\"DB_URL\") or \"\")}'); print(f'SERP_API_KEY length: {len(os.getenv(\"SERP_API_KEY\") or \"\")}'))"
+          python -c 'import os; print(f"DB_URL length: {len(os.getenv(\"DB_URL\") or \"\")}"); print(f"SERP_API_KEY length: {len(os.getenv(\"SERP_API_KEY\") or \"\")}"))'
           python app.py github
           echo "✅ Script execution completed"
 

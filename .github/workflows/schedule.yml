@@ -34,7 +34,13 @@ jobs:
           SERP_API_KEY: ${{ secrets.SERP_API_KEY }}
         run: |
           echo "🚀 Running app.py with 'github' argument..."
-          python -c 'import os; print(f"DB_URL length: {len(os.getenv(\"DB_URL\") or \"\")}"); print(f"SERP_API_KEY length: {len(os.getenv(\"SERP_API_KEY\") or \"\")}"))'
+          python - <<EOF
+import os
+db_url = os.getenv("DB_URL") or ""
+serp_key = os.getenv("SERP_API_KEY") or ""
+print(f"DB_URL length: {len(db_url)}")
+print(f"SERP_API_KEY length: {len(serp_key)}")
+EOF
           python app.py github
           echo "✅ Script execution completed"
 
@@ -44,22 +50,22 @@ jobs:
         run: |
           echo "🔍 Checking if data was stored..."
           pip install psycopg2-binary
-          python - <<'EOF'
-          import psycopg2, os, datetime
-          try:
-              conn = psycopg2.connect(os.getenv('DB_URL'), sslmode='require')
-              cursor = conn.cursor()
-              today = datetime.date.today()
-              cursor.execute('SELECT COUNT(*) FROM share_of_voice WHERE date::date = %s::date', (today,))
-              count = cursor.fetchone()[0]
-              print(f'✅ Records found for today: {count}')
-              if count == 0:
-                  print('⚠️ WARNING: No records were stored for today!')
-              cursor.close()
-              conn.close()
-          except Exception as e:
-              print(f'❌ Error checking database: {str(e)}')
-          EOF
+          python - <<EOF
+import psycopg2, os, datetime
+try:
+    conn = psycopg2.connect(os.getenv('DB_URL'), sslmode='require')
+    cursor = conn.cursor()
+    today = datetime.date.today()
+    cursor.execute('SELECT COUNT(*) FROM share_of_voice WHERE date::date = %s::date', (today,))
+    count = cursor.fetchone()[0]
+    print(f'✅ Records found for today: {count}')
+    if count == 0:
+        print('⚠️ WARNING: No records were stored for today!')
+    cursor.close()
+    conn.close()
+except Exception as e:
+    print(f'❌ Error checking database: {str(e)}')
+EOF
 
       - name: Capture Logs
         run: cat logs.txt || echo "⚠️ No logs captured."
